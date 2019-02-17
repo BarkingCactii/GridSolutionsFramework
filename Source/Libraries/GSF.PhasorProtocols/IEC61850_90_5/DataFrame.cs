@@ -30,6 +30,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Security.Cryptography;
+using System.Xml;
 using GSF.IO;
 using GSF.Parsing;
 using GSF.Units.EE;
@@ -584,7 +585,6 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
         {
             // Overrides base class behavior, ASDUs can generally be parsed even without configuration.
             buffer.ValidateParameters(startIndex, length);
-
             CommonFrameHeader header = CommonHeader;
             IDataFrameParsingState state = State;
             IConfigurationFrame configurationFrame = state.ConfigurationFrame;
@@ -601,89 +601,186 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             // Get reference to configuration frame, if available
             m_configurationFrame = ConfigurationFrame;
 
-            // Parse each ASDU in incoming frame (e.g, DataCell(t-2), DataCell(t-1), DataCell(t))
-            for (int i = 0; i < header.AsduCount; i++)
+            // Check session type
+            if (header.SessionID == SessionType.SampledValues)
             {
-                // Handle redundant ASDU - last one parsed will be newest and exposed normally
-                if (i > 0)
+                // Parse each ASDU in incoming frame (e.g, DataCell(t-2), DataCell(t-1), DataCell(t))
+                for (int i = 0; i < header.AsduCount; i++)
                 {
-                    if (header.ParseRedundantASDUs)
+                    // Handle redundant ASDU - last one parsed will be newest and exposed normally
+                    if (i > 0)
                     {
-                        // Create a new data frame to hold redundant ASDU data
-                        DataFrame dataFrame = new DataFrame
+                        if (header.ParseRedundantASDUs)
                         {
-                            ConfigurationFrame = m_configurationFrame,
-                            CommonHeader = header
-                        };
+                            // Create a new data frame to hold redundant ASDU data
+                            DataFrame dataFrame = new DataFrame
+                            {
+                                ConfigurationFrame = m_configurationFrame,
+                                CommonHeader = header
+                            };
 
-                        // Add a copy of the current data cell to the new frame 
-                        foreach (IDataCell cell in Cells)
-                        {
-                            dataFrame.Cells.Add(cell);
+                            // Add a copy of the current data cell to the new frame 
+                            foreach (IDataCell cell in Cells)
+                            {
+                                dataFrame.Cells.Add(cell);
+                            }
+
+                            // Publish new data frame with redundant ASDU data
+                            header.PublishFrame(dataFrame);
                         }
 
-                        // Publish new data frame with redundant ASDU data
-                        header.PublishFrame(dataFrame);
+                        // Clear any existing ASDU values from this data frame
+                        Cells.Clear();
                     }
 
-                    // Clear any existing ASDU values from this data frame
-                    Cells.Clear();
-                }
+                    // Validate ASDU sequence tag exists and skip past it
+                    buffer.ValidateTag(SampledValueTag.AsduSequence, ref index);
 
-                // Validate ASDU sequence tag exists and skip past it
-                buffer.ValidateTag(SampledValueTag.AsduSequence, ref index);
+                    // Parse MSVID value
+                    m_msvID = buffer.ParseStringTag(SampledValueTag.MsvID, ref index);
 
-                // Parse MSVID value
-                m_msvID = buffer.ParseStringTag(SampledValueTag.MsvID, ref index);
-
-                // If formatted according to implementation agreement, MSVID value will contain an ID code and station name
-                if (!string.IsNullOrWhiteSpace(m_msvID))
-                {
-                    int underscoreIndex = m_msvID.IndexOf("_");
-
-                    if (underscoreIndex > 0)
+                    // If formatted according to implementation agreement, MSVID value will contain an ID code and station name
+                    if (!string.IsNullOrWhiteSpace(m_msvID))
                     {
-                        if (!ushort.TryParse(m_msvID.Substring(0, underscoreIndex), out m_idCode))
+                        int underscoreIndex = m_msvID.IndexOf("_");
+
+                        if (underscoreIndex > 0)
                         {
-                            m_idCode = 1;
-                            m_stationName = m_msvID;
+                            if (!ushort.TryParse(m_msvID.Substring(0, underscoreIndex), out m_idCode))
+                            {
+                                m_idCode = 1;
+                                m_stationName = m_msvID;
+                            }
+                            else
+                            {
+                                m_stationName = m_msvID.Substring(underscoreIndex + 1);
+                            }
                         }
                         else
                         {
-                            m_stationName = m_msvID.Substring(underscoreIndex + 1);
+                            m_idCode = 1;
+                            m_stationName = m_msvID;
                         }
                     }
                     else
                     {
                         m_idCode = 1;
-                        m_stationName = m_msvID;
+                        m_stationName = "IEC61850Dataset";
                     }
+
+                    //// Dataset name has been removed as per implementation agreement
+                    //// Parse dataset name
+                    //m_dataSet = buffer.ParseStringTag(SampledValueTag.Dataset, ref index);
+
+                    // Parse sample count
+                    m_sampleCount = buffer.ParseUInt16Tag(SampledValueTag.SmpCnt, ref index);
+
+                    // Parse configuration revision
+                    m_configurationRevision = buffer.ParseUInt32Tag(SampledValueTag.ConfRev, ref index);
+
+                    // Parse refresh time
+                    if ((SampledValueTag)buffer[index] != SampledValueTag.RefrTm)
+                        throw new InvalidOperationException("Encountered out-of-sequence or unknown sampled value tag: 0x" + buffer[startIndex].ToString("X").PadLeft(2, '0'));
+
+                    index++;
+                    tagLength = buffer.ParseTagLength(ref index);
+
+                    if (tagLength < 8)
+                        throw new InvalidOperationException(string.Format("Unexpected length for \"{0}\" tag: {1}", SampledValueTag.RefrTm, tagLength));
+
+                    uint secondOfCentury = BigEndian.ToUInt32(buffer, index);
+                    UInt24 fractionOfSecond = BigEndian.ToUInt24(buffer, index + 4);
+                    index += 7;
+
+                    // Get whole seconds of timestamp
+                    long timestamp = (new UnixTimeTag((decimal)secondOfCentury)).ToDateTime().Ticks;
+
+                    // Add fraction seconds of timestamp
+                    decimal fractionalSeconds = fractionOfSecond / (decimal)header.Timebase;
+                    timestamp += (long)(fractionalSeconds * (decimal)Ticks.PerSecond);
+
+                    // Apply parsed timestamp to common header
+                    header.Timestamp = timestamp;
+                    header.TimeQualityFlags = (TimeQualityFlags)buffer[index++];
+
+                    // Parse sample synchronization state
+                    SampleSynchronization = buffer.ParseByteTag(SampledValueTag.SmpSynch, ref index);
+
+                    // Parse optional sample rate
+                    if ((SampledValueTag)buffer[index] == SampledValueTag.SmpRate)
+                        m_sampleRate = buffer.ParseUInt16Tag(SampledValueTag.SmpRate, ref index);
+
+                    // Validate that next tag is for sample values
+                    if ((SampledValueTag)buffer[index] != SampledValueTag.Samples)
+                        throw new InvalidOperationException("Encountered out-of-sequence or unknown sampled value tag: 0x" + buffer[startIndex].ToString("X").PadLeft(2, '0'));
+
+                    index++;
+                    tagLength = buffer.ParseTagLength(ref index);
+
+                    // Attempt to derive a configuration if none is defined
+                    if ((object)m_configurationFrame == null)
+                    {
+                        // If requested, attempt to load configuration from an associated ETR file
+                        if (header.UseETRConfiguration)
+                            ParseETRConfiguration();
+
+                        // If we still have no configuration, see if a "guess" is requested
+                        if ((object)m_configurationFrame == null && header.GuessConfiguration)
+                            GuessAtConfiguration(tagLength);
+                    }
+
+                    if ((object)m_configurationFrame == null)
+                    {
+                        // If the configuration is still unavailable, skip past sample values - don't know the details otherwise
+                        index += tagLength;
+                    }
+                    else
+                    {
+                        // See if sample size validation should by bypassed
+                        if (header.IgnoreSampleSizeValidationFailures)
+                        {
+                            base.ParseBodyImage(buffer, index, length - (index - startIndex));
+                            index += tagLength;
+                        }
+                        else
+                        {
+                            // Validate that sample size matches current configuration
+                            if (tagLength != m_configurationFrame.GetCalculatedSampleLength())
+                                throw new InvalidOperationException("Configuration does match data sample size - cannot parse data");
+
+                            // Parse standard synchrophasor sequence
+                            index += (ushort)base.ParseBodyImage(buffer, index, length - (index - startIndex));
+                        }
+                    }
+
+                    // Skip past optional sample mod tag, if defined
+                    if ((SampledValueTag)buffer[startIndex] == SampledValueTag.SmpMod)
+                        buffer.ValidateTag(SampledValueTag.SmpMod, ref index);
+
+                    // Skip past optional UTC timestamp tag, if defined
+                    if ((SampledValueTag)buffer[startIndex] == SampledValueTag.UtcTimestamp)
+                        buffer.ValidateTag(SampledValueTag.UtcTimestamp, ref index);
                 }
-                else
-                {
-                    m_idCode = 1;
-                    m_stationName = "IEC61850Dataset";
-                }
+            }
+            else if (header.SessionID == SessionType.Goose)
+            {
+                // Validate and Skip a bunch of useless tags
+                buffer.SkipTag(GooseTag.GocbRef, ref index);
+                buffer.SkipTag(GooseTag.TimeAllowedToLive, ref index);
+                buffer.SkipTag(GooseTag.DatSet, ref index);
 
-                //// Dataset name has been removed as per implementation agreement
-                //// Parse dataset name
-                //m_dataSet = buffer.ParseStringTag(SampledValueTag.Dataset, ref index);
+                // Currently parse GoID string to use in place of msvID (potentially DatSet might be a better reference?)
+                m_msvID = buffer.ParseStringTag((SampledValueTag)GooseTag.GoId, ref index);
 
-                // Parse sample count
-                m_sampleCount = buffer.ParseUInt16Tag(SampledValueTag.SmpCnt, ref index);
-
-                // Parse configuration revision
-                m_configurationRevision = buffer.ParseUInt32Tag(SampledValueTag.ConfRev, ref index);
-
-                // Parse refresh time
-                if ((SampledValueTag)buffer[index] != SampledValueTag.RefrTm)
-                    throw new InvalidOperationException("Encountered out-of-sequence or unknown sampled value tag: 0x" + buffer[startIndex].ToString("X").PadLeft(2, '0'));
+                // Parse refresh time (same as SV)
+                if ((GooseTag)buffer[index] != GooseTag.RefrTm)
+                    throw new InvalidOperationException("Encountered out-of-sequence or unknown goose tag: 0x" + buffer[startIndex].ToString("X").PadLeft(2, '0'));
 
                 index++;
                 tagLength = buffer.ParseTagLength(ref index);
 
                 if (tagLength < 8)
-                    throw new InvalidOperationException(string.Format("Unexpected length for \"{0}\" tag: {1}", SampledValueTag.RefrTm, tagLength));
+                    throw new InvalidOperationException(string.Format("Unexpected length for \"{0}\" tag: {1}", GooseTag.RefrTm, tagLength));
 
                 uint secondOfCentury = BigEndian.ToUInt32(buffer, index);
                 UInt24 fractionOfSecond = BigEndian.ToUInt24(buffer, index + 4);
@@ -700,67 +797,139 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
                 header.Timestamp = timestamp;
                 header.TimeQualityFlags = (TimeQualityFlags)buffer[index++];
 
-                // Parse sample synchronization state
-                SampleSynchronization = buffer.ParseByteTag(SampledValueTag.SmpSynch, ref index);
+                // skip stNum tag
+                buffer.SkipTag(GooseTag.StNum, ref index);
 
-                // Parse optional sample rate
-                if ((SampledValueTag)buffer[index] == SampledValueTag.SmpRate)
-                    m_sampleRate = buffer.ParseUInt16Tag(SampledValueTag.SmpRate, ref index);
-
-                // Validate that next tag is for sample values
-                if ((SampledValueTag)buffer[index] != SampledValueTag.Samples)
-                    throw new InvalidOperationException("Encountered out-of-sequence or unknown sampled value tag: 0x" + buffer[startIndex].ToString("X").PadLeft(2, '0'));
-
-                index++;
-                tagLength = buffer.ParseTagLength(ref index);
-
-                // Attempt to derive a configuration if none is defined
-                if ((object)m_configurationFrame == null)
+                // Validate sqNum tag and subsititute as sample count
+                int countLength = buffer.ValidateTag(GooseTag.SqNum, ref index);
+                if (countLength < 2)
                 {
-                    // If requested, attempt to load configuration from an associated ETR file
-                    if (header.UseETRConfiguration)
-                        ParseETRConfiguration();
-
-                    // If we still have no configuration, see if a "guess" is requested
-                    if ((object)m_configurationFrame == null && header.GuessConfiguration)
-                        GuessAtConfiguration(tagLength);
-                }
-
-                if ((object)m_configurationFrame == null)
-                {
-                    // If the configuration is still unavailable, skip past sample values - don't know the details otherwise
-                    index += tagLength;
+                    m_sampleCount = ushort.Parse(buffer[index++].ToString("X"), System.Globalization.NumberStyles.HexNumber);
                 }
                 else
                 {
-                    // See if sample size validation should by bypassed
-                    if (header.IgnoreSampleSizeValidationFailures)
-                    {
-                        base.ParseBodyImage(buffer, index, length - (index - startIndex));
-                        index += tagLength;
-                    }
-                    else
-                    {
-                        // Validate that sample size matches current configuration
-                        if (tagLength != m_configurationFrame.GetCalculatedSampleLength())
-                            throw new InvalidOperationException("Configuration does match data sample size - cannot parse data");
-
-                        // Parse standard synchrophasor sequence
-                        index += base.ParseBodyImage(buffer, index, length - (index - startIndex));
-                    }
+                    index--;
+                    index--;
+                    m_sampleCount = buffer.ParseUInt16Tag(SampledValueTag.SmpRate, ref index);
                 }
 
-                // Skip past optional sample mod tag, if defined
-                if ((SampledValueTag)buffer[startIndex] == SampledValueTag.SmpMod)
-                    buffer.ValidateTag(SampledValueTag.SmpMod, ref index);
+                // skip several more tags
+                buffer.SkipTag(GooseTag.Test, ref index);
+                buffer.SkipTag(GooseTag.ConfRev, ref index);
+                buffer.SkipTag(GooseTag.NdsCom, ref index);
+                buffer.SkipTag(GooseTag.NumDatSetEntries, ref index);
 
-                // Skip past optional UTC timestamp tag, if defined
-                if ((SampledValueTag)buffer[startIndex] == SampledValueTag.UtcTimestamp)
-                    buffer.ValidateTag(SampledValueTag.UtcTimestamp, ref index);
+                // Confirm next tag is actual data
+                buffer.ValidateTag(GooseTag.AllData, ref index);
+                
+                // Extract data without tags to new buffer
+                byte[] dataBuffer = buffer.ExtractGooseData(ref index);
+                if ((object)m_configurationFrame == null)
+                {
+                    if (header.UseETRConfiguration)
+                    {
+                        ParseXmlConfig();
+                    }
+                    else
+                        throw new InvalidOperationException("No configuration available, data will be ignored");
+                }
+                if ((object)m_configurationFrame != null)
+                {
+                    // Validate that sample size matches current configuration
+                    if (dataBuffer.Length != m_configurationFrame.GetCalculatedSampleLength())
+                    {
+                        // If it doesn't check configuration hasn't changed
+                        ParseXmlConfig();
+                    }
+                    if (dataBuffer.Length != m_configurationFrame.GetCalculatedSampleLength())
+                    {
+                        // (Last chance) Possible frequnecy data is missing which is included in calculated lenght by default
+                        if (dataBuffer.Length != m_configurationFrame.GetCalculatedSampleLength() - 8)
+                            throw new InvalidOperationException("Configuration does not match data sample size - cannot parse data");
+                    }
+
+                    // Parse the sequence (same as SV)
+                    base.ParseBodyImage(dataBuffer, 0, dataBuffer.Length);
+                }
             }
-
             // We're not parsing any of the items remaining in the footer...
             return header.FrameLength;
+        }
+
+        // XML READER
+        private void ParseXmlConfig()
+        {
+            XmlReaderSettings settings = new XmlReaderSettings();
+            settings.DtdProcessing = DtdProcessing.Parse;
+            XmlReader reader = XmlReader.Create(m_msvID + ".XML", settings);
+            reader.MoveToContent();
+            String elementType = "NONE", lastElementType = "NONE";
+            string label;
+            bool statusDefined = false;
+            ConfigurationFrame configFrame = new ConfigurationFrame(Common.Timebase, 1, DateTime.UtcNow.Ticks, m_sampleRate);
+            ConfigurationCell configCell = new ConfigurationCell(configFrame, (ushort)(1 + configFrame.Cells.Count), LineFrequency.Hz50)
+            {
+                StationName = m_msvID
+            };
+            bool badOrder = false;
+            // Parse the file and display each of the nodes.
+            while (reader.Read())
+            {
+                switch (reader.NodeType)
+                {
+                    case XmlNodeType.Element:
+                        elementType = reader.Name;
+                        break;
+                    case XmlNodeType.Text:
+                        label = reader.Value;
+                        switch (elementType)
+                        {
+                            case "FLAG":
+                                badOrder = lastElementType != "NONE";
+                                statusDefined = true;
+                                break;
+                            case "VPHA":
+                            case "IPHA":
+                                badOrder = (lastElementType != "FLAG" && lastElementType != "VPHA" && lastElementType != "IPHA");
+                                PhasorDefinition phasor = new PhasorDefinition(configCell, label, 1, 0.0D, elementType == "VPHA" ? PhasorType.Voltage : PhasorType.Current, null);
+                                configCell.PhasorDefinitions.Add(phasor);
+                                break;
+                            case "FREQ":
+                                badOrder = (lastElementType != "VPHA" && lastElementType != "IPHA" && lastElementType != "FLAG");
+                                break;
+                            case "DFDT":
+                                badOrder = lastElementType != "FREQ";
+                                configCell.FrequencyDefinition = new FrequencyDefinition(configCell, "Frequency");
+                                break;
+                            case "ALOG":
+                                badOrder = (lastElementType == "DIGI");
+                                AnalogDefinition analog = new AnalogDefinition(configCell, label, 1, 0.0D, AnalogType.SinglePointOnWave);
+                                configCell.AnalogDefinitions.Add(analog);
+                                break;
+                            case "DIGI":
+                                DigitalDefinition digital = new DigitalDefinition(configCell, label, 0, 1);
+                                configCell.DigitalDefinitions.Add(digital);
+                                break;
+                            default:
+                                throw new InvalidOperationException("Unexpected signal type encountered: " + elementType);
+                        }
+                        lastElementType = elementType;
+                        break;
+                    default:
+                        break;
+                }
+                if (badOrder)
+                    throw new InvalidOperationException(string.Format("Invalid signal order encountered - {0} cannot follow {1}. Standard synchrophasor order is: status flags, one or more phasor magnitude/angle pairs, frequency, dF/dt, optional analogs, optional digitals", elementType, lastElementType));
+            }
+
+            if (!statusDefined)
+                throw new InvalidOperationException("No status flag signal was defined.");
+
+            // Add cell to configuration frame
+            configFrame.Cells.Add(configCell);
+
+            // Publish configuration frame
+            PublishNewConfigurationFrame(configFrame);
         }
 
         // Attempt to parse an associated ETR configuration

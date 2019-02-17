@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<!-- This XML document is used as a substitute for a config frame for a device in OpenPDC
+	 To contruct this XML file a Dataset tag must be led with. Following this, tags of dataset elements
+	 with there desired label name.
+
+	 Available elements and their required order are as follows:
+	 <FLAG></FLAG> The STAT element of the Synchrophasor dataset (only 1)
+	 <VPHA></VPHA> Voltage Phasor
+	 <IPHA></IPHA> Current Phasor
+	 <FREQ></FREQ> Frequency
+	 <DFDT></DFDT> Rate of Change of Frequency (ROCOF)
+	 <ALOG></ALOG> Analogue value
+	 <DIGI></DIGI> Digitial Value
+	 
+	 Additional elements can be added to this in their required order however these elements are currently a default requirement:
+	 <Dataset>
+	 	<FLAG>StatFlag1</FLAG>
+	 </Dataset>
+
+	 An example dataset shown below to demonstrate order requirements:
+	 <Dataset>
+  	 	<FLAG>Stat</FLAG>
+  		<VPHA>VPHA1</VPHA>
+  		<VPHA>VPHA2</VPHA>
+  		<IPHA>IPHA1</IPHA>
+  		<IPHA>IPHA2</IPHA>
+  		<FREQ>FREQ</FREQ>
+ 		<DFDT>ROCOF</DFDT>
+ 		<ALOG>AV1</ALOGL>
+  		<DIGI>DV1</DIGI>
+  		<DIGI>DV2</DIGI>
+	</Dataset>
+-->
+<Dataset>
+  <FLAG>Stat</FLAG>
+  <FREQ>Freq</FREQ>
+  <DFDT>ROCOF</DFDT>
+  <DIGI>DV1</DIGI>
+</Dataset>

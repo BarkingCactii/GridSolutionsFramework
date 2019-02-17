@@ -83,6 +83,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
 
         // Fields
         private FrameType m_frameType;
+        private SessionType m_sessionType;
         private byte m_version;
         private ushort m_frameLength;
         private ushort m_dataLength;
@@ -181,7 +182,6 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
 
             // Ignore the time base from configuration frame if available.  The timebase is not adjustable for 61850.
             m_timebase = Common.Timebase;
-
             // See if frame is for a common IEEE C37.118 frame (e.g., for configuration or command)
             if (buffer[startIndex] == PhasorProtocols.Common.SyncByte)
             {
@@ -233,10 +233,10 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
                     int frameLength = cltpTagLength;
 
                     // Get session type (Goose, sampled values, etc.)
-                    SessionType sessionType = (SessionType)buffer[index++];
+                    m_sessionType = (SessionType)buffer[index++];
 
-                    // Make sure session type is sampled values
-                    if (sessionType == SessionType.SampledValues)
+                    // Make sure session type is sampled values or goose
+                    if (m_sessionType == SessionType.SampledValues || m_sessionType == SessionType.Goose)
                     {
                         byte headerSize = buffer[index];
 
@@ -255,7 +255,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
 
                             // Make sure full frame of data is available - cannot calculate full frame length needed for check sum
                             // without the entire frame since signature algorithm calculation length varies by type and size
-                            if (length > m_spduLength + 13)
+                            if (length > m_spduLength + 13 || m_sessionType == SessionType.Goose)
                             {
                                 // Get SPDU packet number
                                 m_packetNumber = BigEndian.ToUInt32(buffer, index);
@@ -347,8 +347,8 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
                                 m_dataLength = (ushort)BigEndian.ToUInt32(buffer, index);
                                 index += 4;
 
-                                // Confirm payload type tag is sampled values
-                                if (buffer[index] != 0x82)
+                                // Confirm payload type tag is sampled values (0x82) or goose (0x81)
+                                if ((buffer[index] != 0x82 && m_sessionType == SessionType.SampledValues) || (buffer[index] != 0x81 && m_sessionType == SessionType.Goose))
                                     throw new InvalidOperationException("Encountered a payload that is not tagged 0x82 for sampled values: 0x" + buffer[index].ToString("X").PadLeft(2, '0'));
 
                                 index++;
@@ -363,18 +363,28 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
                                 // Get ASDU payload size
                                 m_payloadSize = BigEndian.ToUInt16(buffer, index);
                                 index += 2;
+                                
+                                // Do some specific things related to SV
+                                if (m_sessionType == SessionType.SampledValues)
+                                {
+                                    // Validate sampled value PDU tag exists and skip past it
+                                    buffer.ValidateTag(SampledValueTag.SvPdu, ref index);
 
-                                // Validate sampled value PDU tag exists and skip past it
-                                buffer.ValidateTag(SampledValueTag.SvPdu, ref index);
+                                    // Parse number of ASDUs tag
+                                    m_asduCount = buffer.ParseByteTag(SampledValueTag.AsduCount, ref index);
 
-                                // Parse number of ASDUs tag
-                                m_asduCount = buffer.ParseByteTag(SampledValueTag.AsduCount, ref index);
+                                    if (m_asduCount == 0)
+                                        throw new InvalidOperationException("Total number of ADSUs must be greater than zero.");
 
-                                if (m_asduCount == 0)
-                                    throw new InvalidOperationException("Total number of ADSUs must be greater than zero.");
-
-                                // Validate sequence of ASDU tag exists and skip past it
-                                buffer.ValidateTag(SampledValueTag.SequenceOfAsdu, ref index);
+                                    // Validate sequence of ASDU tag exists and skip past it
+                                    buffer.ValidateTag(SampledValueTag.SequenceOfAsdu, ref index);
+                                }
+                                // If the session type is not SV, check it is GOOSE (again)
+                                else if (m_sessionType == SessionType.Goose)
+                                {
+                                    // Validate goose value PDU tag exists and skip past it
+                                    buffer.ValidateTag(GooseTag.GPdu, ref index);
+                                }
 
                                 // Set header length
                                 m_headerLength = (ushort)(index - startIndex);
@@ -390,7 +400,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
                     }
                     else
                     {
-                        throw new InvalidOperationException(string.Format("This library can only parse IEC 61850-90-5 sampled value sessions, type \"{0}\" is not supported.", sessionType));
+                        throw new InvalidOperationException(string.Format("This library can only parse IEC 61850-90-5 sampled value sessions, type \"{0}\" is not supported.", m_sessionType));
                     }
                 }
             }
@@ -483,6 +493,20 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             set
             {
                 m_frameType = value;
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the IEC 61850-90-5 specific frame type of this frame.
+        /// </summary>
+        /// <para>
+        /// This returns the protocol specific session classification which uniquely identifies the session type.
+        /// </para>
+        public SessionType SessionID
+        {
+            get
+            {
+                return m_sessionType;
             }
         }
 

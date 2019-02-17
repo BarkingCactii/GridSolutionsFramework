@@ -27,6 +27,8 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace GSF.PhasorProtocols.IEC61850_90_5
 {
@@ -186,6 +188,126 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
         /// UTC Timestamp.
         /// </summary>
         UtcTimestamp = 0x89
+    }
+
+    /// <summary>
+    /// Goose tags.
+    /// </summary>
+    public enum GooseTag : byte
+    {
+        /// <summary>
+        /// Goose protocol data unit.
+        /// </summary>
+        GPdu = 0x61,
+        /// <summary>
+        /// Reference to Goose Control Block
+        /// </summary>
+        GocbRef = 0x80,
+        /// <summary>
+        /// Time allowed to live
+        /// </summary>
+        TimeAllowedToLive = 0x81,
+        /// <summary>
+        /// Data Set
+        /// </summary>
+        DatSet = 0x82,
+        /// <summary>
+        /// Goose ID
+        /// </summary>
+        GoId = 0x83,
+        /// <summary>
+        /// Local refresh time.
+        /// </summary>
+        RefrTm = 0x84,
+        /// <summary>
+        /// State Number
+        /// </summary>
+        StNum = 0x85,
+        /// <summary>
+        /// Sequence Number
+        /// </summary>
+        SqNum = 0x86,
+        /// <summary>
+        /// Test.
+        /// </summary>
+        Test = 0x87,
+        /// <summary>
+        /// Configuration revision.
+        /// </summary>
+        ConfRev = 0x88,
+        /// <summary>
+        /// Needs commissioning.
+        /// </summary>
+        NdsCom = 0x89,
+        /// <summary>
+        /// Number of Data Set Entries
+        /// </summary>
+        NumDatSetEntries =  0x8A,
+        /// <summary>
+        /// ALl data
+        /// </summary>
+        AllData = 0xAB
+    }
+
+
+    ///
+    ///
+    ///
+    public enum DataType : byte
+    {
+        /// <summary>
+        /// Array.
+        /// </summary>
+        array = 0x81,
+        /// <summary>
+        /// Structure.
+        /// </summary>
+        structure = 0xA2,
+        /// <summary>
+        /// Boolean.
+        /// </summary>
+        boolean = 0x83,
+        /// <summary>
+        /// bit string.
+        /// </summary>
+        bitString = 0x84,
+        /// <summary>
+        /// Integer.
+        /// </summary>
+        integer = 0x85,
+        /// <summary>
+        /// Unsigned.
+        /// </summary>
+        unsigned = 0x86,
+        /// <summary>
+        /// Floating Point.
+        /// </summary>
+        floatingPoint = 0x87,
+        /// <summary>
+        /// Octet String.
+        /// </summary>
+        octetString = 0x89,
+        /// <summary>
+        /// Visible string.
+        /// </summary>
+        visibleStirng = 0x8A,
+        /// <summary>
+        /// Time of day.
+        /// </summary>
+        timeOfDay = 0x8C,
+        /// <summary>
+        /// BCD.
+        /// </summary>
+        BCD = 0x8D,
+        /// <summary>
+        /// Boolean Array.
+        /// </summary>
+        booleanArray = 0x8E,
+        /// <summary>
+        /// UTC Timestamp.
+        /// </summary>
+        utcTime = 0x91
+
     }
 
     /// <summary>
@@ -561,6 +683,49 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
         }
 
         /// <summary>
+        /// Validates data tag exists and skips past it.
+        /// </summary>
+        /// <param name="buffer">Buffer containing sampled value tag length.</param>
+        /// <param name="tag">data tag to validate.</param>
+        /// <param name="index">Start index of buffer where tag length begins - will be auto-incremented.</param>
+        public static int ValidateTag(this byte[] buffer, DataType tag, ref int index)
+        {
+            if ((DataType )buffer[index] != tag)
+                throw new InvalidOperationException("Encountered out-of-sequence or unknown data type tag: 0x" + buffer[index].ToString("X").PadLeft(2, '0'));
+
+            index++;
+            return buffer.ParseTagLength(ref index);
+        }
+
+        /// <summary>
+        /// Validates data tag exists and skips past it.
+        /// </summary>
+        /// <param name="buffer">Buffer containing sampled value tag length.</param>
+        /// <param name="tag">Sampled value tag to validate.</param>
+        /// <param name="index">Start index of buffer where tag length begins - will be auto-incremented.</param>
+        public static int ValidateTag(this byte[] buffer, GooseTag tag, ref int index)
+        {
+            if ((GooseTag)buffer[index] != tag)
+                throw new InvalidOperationException("Encountered out-of-sequence or unknown goose tag: 0x" + buffer[index].ToString("X").PadLeft(2, '0') + " should be" + tag.ToString("X").PadLeft(2, '0'));
+
+            index++;
+            return buffer.ParseTagLength(ref index);
+        }
+
+        /// <summary>
+        /// Validates data tag and skips past it.
+        /// </summary>
+        /// <param name="buffer">Buffer containing sampled value tag length.</param>
+        /// <param name="tag">Sampled value tag to validate.</param>
+        /// <param name="index">Start index of buffer where tag length begins - will be auto-incremented.</param>
+        public static int SkipTag(this byte[] buffer, GooseTag tag, ref int index)
+        {
+            int tagLength = buffer.ValidateTag(tag, ref index);
+            index += tagLength;
+            return tagLength;
+        }
+
+        /// <summary>
         /// Validates and parses byte length sample value tag.
         /// </summary>
         /// <param name="buffer">Buffer containing sampled value.</param>
@@ -776,6 +941,55 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
                 Buffer.BlockCopy(bytes, 0, buffer, index, bytes.Length);
                 index += bytes.Length;
             }
+        }
+
+        /// <summary>
+        /// Extracts data froom goose strucutre to remove T-L-V elements
+        /// </summary>
+        /// <param name="buffer">Buffer containing goose message.</param>
+        /// <param name="index">Start index of buffer where data begins</param>=
+        /// <returns>Byte array containing recorded data without tags or lengths</returns>
+        public static byte[] ExtractGooseData(this byte[] buffer, ref int index)
+        {
+            // Create list to store data
+            List<byte> gooseData = new List<byte>();
+
+            // Form array of data types for comparison
+            DataType[] dataType = Enum.GetValues(typeof(DataType)).Cast<DataType>().ToArray();
+
+            // Loop through to buffers end
+            while (index < buffer.Length)
+            {
+                foreach (DataType type in dataType)
+                {
+                    // If the tag is a structure, skip it
+                    if ((DataType)buffer[index] == DataType.structure)
+                    {
+                        buffer.ValidateTag(DataType.structure, ref index);
+                        break;
+                    }
+                    // Check if data type matches
+                    else if ((DataType)buffer[index] == type)
+                    {
+                        // Acquire data length
+                        int tagLength = buffer.ValidateTag(type, ref index) - 1;
+                        // Increment index because I said so (also for some reason there are two length tags TODO: Investigate)
+                        index++;
+                        // Add data to list
+                        while (tagLength-- > 0)
+                        {
+                            gooseData.Add(buffer[index++]);
+                        }
+                        break;
+                    }
+                    else if (type == dataType.Last())
+                    {
+                        throw new InvalidOperationException("Encountered unknown data tag: 0x" + buffer[index].ToString("X").PadLeft(2, '0'));
+                    }
+                }
+            }
+            // Return byte array for parsing
+            return gooseData.ToArray();
         }
 
         /// <summary>
