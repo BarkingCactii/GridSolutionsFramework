@@ -972,12 +972,27 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
                     else if ((DataType)buffer[index] == type)
                     {
                         // Acquire data length
-                        int tagLength = buffer.ValidateTag(type, ref index) - 1;
-                        // Increment index because I said so (also for some reason there are two length tags TODO: Investigate)
-                        index++;
+                        int tagLength = buffer.ValidateTag(type, ref index);
+                        // Increment index for bitstring and float types because of the extra byte (also decrement taglength to account)
+                        if (type == DataType.bitString || type == DataType.floatingPoint)
+                        {
+                            index++;
+                            tagLength--;
+                        }
+
+                        // If there is only 1 byte (8bits) the program will be expecting at least 16 so tack on some zeros
+                        bool appendZeros = false;
+                        if (tagLength < 2) appendZeros = true;
+
                         // Add data to list
                         while (tagLength-- > 0)
                         {
+                            if (appendZeros)
+                            {
+                                gooseData.Add(0x00);
+                                appendZeros = false;
+                                index++;
+                            }
                             gooseData.Add(buffer[index++]);
                         }
                         break;
