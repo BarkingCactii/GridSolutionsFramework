@@ -30,6 +30,8 @@ using System.Linq;
 using System.Runtime.Serialization;
 using GSF.IO.Checksums;
 using GSF.Parsing;
+using System.IO;
+using System.Reflection;
 
 namespace GSF.PhasorProtocols.IEC61850_90_5
 {
@@ -48,6 +50,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
         private CommonFrameHeader m_frameHeader;
         private uint m_timebase;
         private int m_calculatedSampleLength;
+        private int m_calculatedGooseLength;
 
         #endregion
 
@@ -333,6 +336,53 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
 
         #region [ Methods ]
 
+        public String PrintProperties(object obj)
+        {
+            String result = "";
+            return PrintProperties(obj, result, 0);
+        }
+        public String PrintProperties(object obj, String result, int indent)
+        {
+            if (obj == null) return result;
+            string indentString = new string(' ', indent);
+            Type objType = obj.GetType();
+            PropertyInfo[] properties = objType.GetProperties();
+            foreach (PropertyInfo property in properties)
+            {
+                object propValue = property.GetValue(obj, null);
+                if (property.PropertyType.Assembly == objType.Assembly && !property.PropertyType.IsEnum)
+                {
+                    result += String.Format("{0}{1}:\n", indentString, property.Name);
+//                    PrintProperties(propValue, result, indent + 2);
+                    PrintProperties(property.Name, result, indent + 2);
+                }
+                else
+                {
+                    result += String.Format("{0}{1}: {2}\n", indentString, property.Name, propValue);
+                }
+            }
+            return result;
+        }
+
+        private String Blah (object obj)
+        {
+            String result = "Hello\n";
+            Type fieldsType = obj.GetType();
+
+            // Get an array of FieldInfo objects.
+            FieldInfo[] fields = fieldsType.GetFields(BindingFlags.Public
+                | BindingFlags.Instance);
+            // Display the values of the fields.
+            //Console.WriteLine("Displaying the values of the fields of {0}:", fieldsType);
+            for (int i = 0; i < fields.Length; i++)
+            {
+                result += String.Format("{0}: {1}\n", fields[i].Name, fields[i].GetValue(obj));
+
+//                Console.WriteLine("   {0}:\t'{1}'",                   fields[i].Name, fields[i].GetValue(fieldsInst));
+            }
+            return result;
+        }
+
         /// <summary>
         /// Gets calculated length of data samples based on known configuration.
         /// </summary>
@@ -340,9 +390,45 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
         public int GetCalculatedSampleLength()
         {
             if (m_calculatedSampleLength == 0)
+            {
                 m_calculatedSampleLength = Cells.Sum(cell => 10 + cell.PhasorDefinitions.Count * 8 + cell.AnalogDefinitions.Count * 4 + cell.DigitalDefinitions.Count * 2);
+            }
 
             return m_calculatedSampleLength;
+        }
+
+        public int GetCalculatedGooseLength()
+        {
+            if (m_calculatedGooseLength == 0)
+            {
+                foreach (ConfigurationCell cell in Cells)
+                {
+                    try
+                    {
+                        String result = String.Format("cell.IDCode {0}, cell.IDLabel {1}, cell.PhasorDefinitions.Count {2}, cell.AnalogDefinitions.Count {3}, cell.DigitalDefinitions.Count {4}\n", cell.IDCode, cell.IDLabel, cell.PhasorDefinitions.Count, cell.AnalogDefinitions.Count, cell.DigitalDefinitions.Count);
+                        Common.Dump(result);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new InvalidOperationException(String.Format("{0}:{1}:{2}\n", ex.Message, ex.StackTrace, ex.Source));
+                    }
+                }
+                //File.AppendAllText("jeff.txt", String.Format("cell.PhasorDefinitions.Count {0} * 8, cell.AnalogDefinitions.Count {1} * 4, cell.DigitalDefinitions.Count {2} * 2"),
+                //cell.PhasorDefinitions.Count,cell.AnalogDefinitions.Count, Cell.cell.DigitalDefinitions.Count);                
+                // 1 byte for STAT
+                // 5 bytes for FREQ
+                // 5 bytes if FrequencyDefinition exists
+
+                m_calculatedGooseLength = Cells.Sum(cell => 1 + 5 + (cell.FrequencyDefinition == null ? 0 : 5)
+                    + ( cell.PhasorDefinitions.Count * 8 ) 
+                    + ( cell.AnalogDefinitions.Count * 4 ) 
+                    + ( cell.DigitalDefinitions.Count * 2));
+            }
+
+            Common.Dump(String.Format("GetCalculatedGooseLength() -> {0}, Freq {1}, Phasor {2}, Analog {3}, Digital {4}", 
+                m_calculatedGooseLength, Cells.Sum(cell => cell.FrequencyDefinition == null ? 0 : 1), Cells.Sum( cell => cell.PhasorDefinitions.Count), Cells.Sum(cell => cell.AnalogDefinitions.Count), Cells.Sum(cell => cell.DigitalDefinitions.Count)));
+
+            return m_calculatedGooseLength;
         }
 
         /// <summary>

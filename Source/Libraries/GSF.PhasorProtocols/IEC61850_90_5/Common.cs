@@ -29,6 +29,8 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
+using System.Threading;
 
 namespace GSF.PhasorProtocols.IEC61850_90_5
 {
@@ -690,6 +692,8 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
         /// <param name="index">Start index of buffer where tag length begins - will be auto-incremented.</param>
         public static int ValidateTag(this byte[] buffer, DataType tag, ref int index)
         {
+            Common.Dump(buffer, index, "ValidateTag Type", "Data type = " + tag.ToString(), "Index = " + index.ToString());
+
             if ((DataType )buffer[index] != tag)
                 throw new InvalidOperationException("Encountered out-of-sequence or unknown data type tag: 0x" + buffer[index].ToString("X").PadLeft(2, '0'));
 
@@ -705,8 +709,18 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
         /// <param name="index">Start index of buffer where tag length begins - will be auto-incremented.</param>
         public static int ValidateTag(this byte[] buffer, GooseTag tag, ref int index)
         {
+            Common.Dump(buffer, index, "ValidateTag()", "GooseTag = " + tag.ToString(), "Index = " + index.ToString());
+
             if ((GooseTag)buffer[index] != tag)
-                throw new InvalidOperationException("Encountered out-of-sequence or unknown goose tag: 0x" + buffer[index].ToString("X").PadLeft(2, '0') + " should be" + tag.ToString("X").PadLeft(2, '0'));
+            {
+                String output = String.Format("Encountered out-of-sequence or unknown goose tag: 0x{0} should be 0x{1}. Index {2}, Tag{3}, HexDump{4}",
+                    buffer[index].ToString("X").PadLeft(2, '0'), tag.ToString("X").PadLeft(2, '0'),
+                    index.ToString(), tag.ToString(), BitConverter.ToString(buffer).Replace("-", " "));
+
+                Common.Dump(output);
+
+                throw new InvalidOperationException(output);
+            }
 
             index++;
             return buffer.ParseTagLength(ref index);
@@ -951,6 +965,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
         /// <returns>Byte array containing recorded data without tags or lengths</returns>
         public static byte[] ExtractGooseData(this byte[] buffer, ref int index)
         {
+            Common.Dump(buffer, index, "ExtractGooseData()", "Index = " + index.ToString());
             // Create list to store data
             List<byte> gooseData = new List<byte>();
 
@@ -972,14 +987,20 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
                     else if ((DataType)buffer[index] == type)
                     {
                         // Acquire data length
-                        int tagLength = buffer.ValidateTag(type, ref index) - 1;
+                        int tagLength = buffer.ValidateTag(type, ref index);// - 1;
                         // Increment index because I said so (also for some reason there are two length tags TODO: Investigate)
-                        index++;
+                        //index++;
                         // Add data to list
+                        for (int i = 0; i < tagLength; i++, index++)
+                        {
+                            gooseData.Add(buffer[index]);
+                        }
+                        /*
                         while (tagLength-- > 0)
                         {
                             gooseData.Add(buffer[index++]);
                         }
+                        */
                         break;
                     }
                     else if (type == dataType.Last())
@@ -1047,6 +1068,115 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             {
                 // 8-bit length value < 128
                 buffer[index++] = (byte)(length & 0xFF);
+            }
+        }
+
+        static int delay = 10;
+
+        private static String TimeStamp( out int threadId )
+        {
+            threadId = Thread.CurrentThread.ManagedThreadId;
+            return String.Format("{0} ({1}): ", DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss"), Thread.CurrentThread.ManagedThreadId);
+        }
+
+        public static void Dump(byte[] binary)
+        {
+            int numberTries = 10;
+            string outputStr = "";
+
+            while (numberTries >= 0)
+            {
+                try
+                {
+                    for (int i = 0; i < binary.Length; i++)
+                    {
+                        outputStr += String.Format("{0} {1}", BitConverter.ToString(binary, i, 1), ((i + 1) % 16) == 0 ? Environment.NewLine : "");
+                    }
+                    outputStr += Environment.NewLine;
+                    int threadId = 0;
+                    outputStr = Common.TimeStamp(out threadId) + outputStr;
+                    File.AppendAllText(String.Format("jeff-{0}.txt", threadId), outputStr);
+                    return;
+                }
+                catch
+                {
+                    // file is probably locked
+                    numberTries--;
+                    Thread.Sleep(delay);
+
+                }
+            }
+
+        }
+
+        public static void Dump(String str)
+        {
+            int numberTries = 10;
+
+            while (numberTries >= 0)
+            {
+                try
+                {
+                    int threadId = 0;
+                    String outputStr = Common.TimeStamp(out threadId) + str + Environment.NewLine;
+                    File.AppendAllText(String.Format("jeff-{0}.txt", threadId), outputStr);
+
+//                    File.AppendAllText("jeff.txt", Common.TimeStamp() + str + "\n");
+                    return;
+                }
+                catch
+                {
+                    // file is probably locked
+                    numberTries--;
+                    Thread.Sleep(delay);
+
+                }
+            }
+        }
+
+        public static void Dump(byte[] binary, int index, params string[] args)
+        {
+            int numberTries = 10;
+
+            string outputStr = "";
+
+            while (numberTries >= 0)
+            {
+                try
+                {
+                    if (args != null)
+                    {
+                        for (int i = 0; i < args.Length; i++)
+                        {
+                            String str = args[i];
+                            outputStr += str + ", ";
+                        }
+                    }
+
+                    if (binary != null )
+                    {
+                        for (int i = 0; i < binary.Length; i++ )
+                        {
+                            String spacer = (i == index - 1) ? "=>" : ((i == index) ? "<=" : " ");
+                            outputStr += String.Format("{0}{1}{2}", BitConverter.ToString(binary, i, 1), spacer, ((i+1) % 16) == 0 ? Environment.NewLine : "");
+                        }
+                        //outputStr += BitConverter.ToString(binary).Replace("-", " ") + "\n";
+                        outputStr += Environment.NewLine;
+                    }
+
+                    int threadId = 0;
+                    outputStr = Common.TimeStamp(out threadId) + outputStr;
+                    File.AppendAllText(String.Format("jeff-{0}.txt", threadId), outputStr);
+
+                    //File.AppendAllText("jeff.txt", Common.TimeStamp() + outputStr);
+                    return;
+                }
+                catch
+                {
+                    // file is probably locked
+                    numberTries--;
+                    Thread.Sleep(delay);
+                }
             }
         }
     }

@@ -309,6 +309,7 @@ namespace GSF.Parsing
             // For any protocol data that is represented as frames of data in a stream, there will
             // be some set of common identification properties in the frame image, usually at the
             // top, that is common for all frame types.
+
             commonHeader = ParseCommonHeader(buffer, offset, length);
 
             // See if there was enough buffer to parse common header, if not exit and wait for more data

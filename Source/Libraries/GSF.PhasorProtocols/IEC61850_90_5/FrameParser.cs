@@ -278,6 +278,8 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             if (length >= CommonFrameHeader.FixedLength)
             {
                 // Parse common frame header
+
+                Common.Dump(buffer, offset, "ICommonHeader", "Offset = " + offset.ToString(), ",Length = " + length.ToString());
                 CommonFrameHeader parsedFrameHeader = new CommonFrameHeader(m_configurationFrame, m_useETRConfiguration, m_guessConfiguration, m_parseRedundantASDUs, m_ignoreSignatureValidationFailures, m_ignoreSampleSizeValidationFailures, m_phasorAngleFormat, buffer, offset, length)
                 {
                     PublishFrame = OnReceivedChannelFrame

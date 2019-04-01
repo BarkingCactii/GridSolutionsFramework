@@ -17,8 +17,9 @@
     <DebugType>full</DebugType>
     <DefineDebug>true</DefineDebug>
     <DefineTrace>true</DefineTrace>
-    <OutputPath>..\..\..\Build\Output\$(Configuration)\Libraries\</OutputPath>
-    <DocumentationFile>$(OutputPath)\$(AssemblyName).XML</DocumentationFile>
+    <OutputPath>..\..\..\..\Build\Output\Debug\Applications\SIEGate\</OutputPath>
+    <DocumentationFile>
+    </DocumentationFile>
     <RemoveIntegerChecks>true</RemoveIntegerChecks>
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <DefineConstants>TRACE;DEBUG</DefineConstants>
@@ -50,6 +51,18 @@
     <DefineConstants>TRACE;MONO</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="GSF.Communication, Version=2.3.119.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\SIEGate-master\Source\Dependencies\GSF\GSF.Communication.dll</HintPath>
+    </Reference>
+    <Reference Include="GSF.Core, Version=2.3.119.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\SIEGate-master\Source\Dependencies\GSF\GSF.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="GSF.TimeSeries, Version=2.3.119.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\SIEGate-master\Source\Dependencies\GSF\GSF.TimeSeries.dll</HintPath>
+    </Reference>
     <Reference Include="mscorlib" />
     <Reference Include="System" />
     <Reference Include="System.configuration" />
@@ -308,20 +321,6 @@
   <ItemGroup>
     <CodeAnalysisDictionary Include="CodeAnalysisDictionary.xml" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\GSF.Communication\GSF.Communication.csproj">
-      <Project>{2b2eb9be-e6a9-406f-bfe6-ff46dd6bd264}</Project>
-      <Name>GSF.Communication</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\GSF.Core\GSF.Core.csproj">
-      <Project>{ff3fcba6-f01a-4ec2-bc3f-6ba832afcf88}</Project>
-      <Name>GSF.Core</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\GSF.TimeSeries\GSF.TimeSeries.csproj">
-      <Project>{412f9f59-d9b9-4c8e-96d2-20492644198c}</Project>
-      <Name>GSF.TimeSeries</Name>
-    </ProjectReference>
-  </ItemGroup>
   <Target Name="AfterBuild">
     <CallTarget Targets="SignBuild" />
   </Target>
@@ -334,4 +333,8 @@
   </Target>
   -->
   <Import Project="$(MSBuildBinPath)/Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>
+    </PostBuildEvent>
+  </PropertyGroup>
 </Project>
