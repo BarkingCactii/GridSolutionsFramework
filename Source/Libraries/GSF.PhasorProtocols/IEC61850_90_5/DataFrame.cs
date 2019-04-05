@@ -585,6 +585,16 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
         public override int ParseBinaryImage(byte[] buffer, int startIndex, int length)
         {
             // Overrides base class behavior, ASDUs can generally be parsed even without configuration.
+            /*
+            while (startIndex < buffer.Length)
+            {
+                if (buffer[startIndex] == 0x01 && buffer[startIndex + 1] == Common.CltpTag)
+                    break;
+
+                startIndex++;
+                length--;
+            }
+            */
             buffer.ValidateParameters(startIndex, length);
             CommonFrameHeader header = CommonHeader;
             IDataFrameParsingState state = State;
@@ -786,8 +796,20 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             Common.Dump("ParseGoose");
             //Common.Dump(buffer);
 
+            /*
+            // buffers don't always seem to start with goosePdu 0x01 tag, so advance to this
+            while ( startIndex < buffer.Length )
+            {
+                if (buffer[startIndex] == 0x01 && buffer[startIndex+1] == Common.CltpTag)
+                    break;
+
+                startIndex++;
+            }
+            */
             //"somewhere else this is in error"
             int index = startIndex + header.Length;// - 2;// - 3;
+
+            Common.Dump(buffer, index, "Data, headerLength=" + header.Length.ToString());
 
             // Validate and Skip a bunch of useless tags
             buffer.SkipTag(GooseTag.GocbRef, ref index);
@@ -799,7 +821,10 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
 
             // Parse refresh time (same as SV)
             if ((GooseTag)buffer[index] != GooseTag.RefrTm)
+            {
+                Common.Dump(buffer, index, "startindex = " + startIndex.ToString());
                 throw new InvalidOperationException("Encountered out-of-sequence or unknown goose tag: 0x" + buffer[startIndex].ToString("X").PadLeft(2, '0'));
+            }
 
             index++;
             tagLength = buffer.ParseTagLength(ref index);
@@ -845,10 +870,10 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             buffer.SkipTag(GooseTag.NumDatSetEntries, ref index);
 
             // Confirm next tag is actual data
-            buffer.ValidateTag(GooseTag.AllData, ref index);
+            int dataLength = buffer.SkipTag(GooseTag.AllData, ref index);
 
             // Extract data without tags to new buffer
-            byte[] dataBuffer = buffer.ExtractGooseData(ref index);
+            byte[] dataBuffer = buffer.ExtractGooseData(index - dataLength, dataLength);
             int numDataBytes = 0;
 
             if ((object)m_configurationFrame == null)
@@ -881,6 +906,11 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
                 // Parse the sequence (same as SV)
                 base.ParseBodyImage(dataBuffer, 0, dataBuffer.Length);
             }
+
+            // skip final stNum tag
+            buffer.SkipTag(GooseTag.StNum, ref index);
+
+
         }
 
         // XML READER
@@ -894,6 +924,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             dsSet.ReadXml(stringReader);
             */
 
+           // return 0;
             int numDataBytes = 0;
             bool statusDefined = false;
             ConfigurationFrame configFrame = new ConfigurationFrame(Common.Timebase, 1, DateTime.UtcNow.Ticks, m_sampleRate);
@@ -921,19 +952,25 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
                             case "FLAG":
                                 {
                                     numDataBytes += 1;
+                                 //   configCell.DigitalDefinitions.Add(new DigitalDefinition(configCell, locNode.Value, 0, 1));
+                                    
                                     statusDefined = true;
                                     break;
                                 }
                             case "VPHA":
                                 {
                                     numDataBytes += 5;
-                                    configCell.PhasorDefinitions.Add(new PhasorDefinition(configCell, locNode.Value, 1, 0.0D, PhasorType.Voltage, null));
+                                    PhasorDefinition phasor = new PhasorDefinition(configCell, locNode.Value, 1, 0.0D, PhasorType.Voltage, null);
+                                    phasor.Label = "A VPHA Label";
+                                    configCell.PhasorDefinitions.Add(phasor);// new PhasorDefinition(configCell, locNode.Value, 1, 0.0D, PhasorType.Voltage, null));
+
                                     break;
                                 }
                             case "IPHA":
                                 {
                                     numDataBytes += 5;
                                     configCell.PhasorDefinitions.Add(new PhasorDefinition(configCell, locNode.Value, 1, 0.0D, PhasorType.Current, null));
+                                    
                                     break;
                                 }
                             case "FREQ":
@@ -962,11 +999,22 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
                             case "STRING":
                                 {
                                     // can't be determined
+                                 //   DigitalDefinition digital = new DigitalDefinition(configCell, locNode.Value, 0, 1);
+                                 //   digital.Label = "String";
+                                 //   configCell.DigitalDefinitions.Add(digital);
+
                                     numDataBytes += 0;
                                     break;
                                 }
                             case "BOOL":
                                 {
+                                  //  DigitalDefinition digital = new DigitalDefinition(configCell, locNode.Value, 0, 1);
+                                  //  digital.Label = "hahahaha";
+                                //    configCell.DigitalDefinitions.Add(digital);
+
+                                  //  numDataBytes += 5;
+                                  //  configCell.AnalogDefinitions.Add(new AnalogDefinition(configCell, locNode.Value, 1, 0.0D, AnalogType.SinglePointOnWave));
+
                                     numDataBytes += 1;
                                     break;
                                 }

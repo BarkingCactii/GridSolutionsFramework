@@ -28,6 +28,7 @@
 using System;
 using System.Collections.Generic;
 using GSF.Parsing;
+using System.Reflection;
 
 namespace GSF.PhasorProtocols
 {
@@ -68,6 +69,7 @@ namespace GSF.PhasorProtocols
                 m_state = value;
             }
         }
+
 
         /// <summary>
         /// Gets a <see cref="Dictionary{TKey,TValue}"/> of string based property names and values for this <see cref="ChannelBase"/> object.
@@ -120,6 +122,54 @@ namespace GSF.PhasorProtocols
         {
             get
             {
+
+#if jeff
+                Type type = typeof(ChannelBase);
+
+                foreach (var property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+                {
+                    var getMethod = property.GetGetMethod(false);
+                    MethodInfo pathod = getMethod.GetBaseDefinition();
+                    //if (getMethod.GetBaseDefinition() == getMethod)
+                  //  {
+                  //      Console.WriteLine(getMethod);
+                  //  }
+                }
+
+                Type classType = typeof(ChannelBase);
+                PropertyInfo method1= classType.GetProperty("HeaderImage");
+                PropertyInfo method2 = classType.GetProperty("BodyImage");
+                PropertyInfo method3 = classType.GetProperty("FooterImage");
+                // if (method.DeclaringType == typeof(GetProperty))
+                //    Console.WriteLine("DoSomethingExtra not overridden.");
+                //else
+                // Console.WriteLine("DoSomethingExtra is overridden by " + method.DeclaringType.Name);
+
+                int breakHere = 0;
+                if (HeaderImage != null)
+                    breakHere = 1;
+                if (BodyImage != null)
+                    breakHere = 1;
+                if (FooterImage != null)
+                    breakHere = 1;
+
+                if ( HeaderImage == null || BodyImage == null || FooterImage == null )
+                {
+                    //OnStatusMessage(MessageLevel.Info, deviceStatus.ToString());
+
+                    throw new NullReferenceException(String.Format($"BinaryImage(): Byte Array not defined HeaderImage {0}, BodyImage {1}, FooterImage {2}", 
+                        HeaderImage == null ? "null":HeaderImage.Length.ToString(), 
+                        BodyImage == null ? "null" : BodyImage.Length.ToString(), 
+                        FooterImage == null ? "null" : FooterImage.Length.ToString()));
+
+                    //return new byte[0];
+                }
+                else
+                {
+                 //   throw new Exception("Binary Image defined");
+                   // GSF.PhasorProtocols.IEC61850_90_5.Common.Dump("BinaryImage() defined");
+                }
+#endif
                 // TODO: This proxy property can be removed if all channel base implementations are recoded to implement "GenerateHeaderImage/GenerateBodyImage/GenerateFooterImage" overrides...
                 byte[] buffer = new byte[BinaryLength];
                 int index = 0;
@@ -127,7 +177,7 @@ namespace GSF.PhasorProtocols
                 // Copy in header, body and footer images
                 int headerLength = HeaderLength;
 
-                if (headerLength > 0)
+                if (HeaderImage != null && headerLength > 0)
                 {
                     Buffer.BlockCopy(HeaderImage, 0, buffer, index, headerLength);
                     index += headerLength;
@@ -135,7 +185,7 @@ namespace GSF.PhasorProtocols
 
                 int bodyLength = BodyLength;
 
-                if (bodyLength > 0)
+                if (BodyImage != null && bodyLength > 0)
                 {
                     Buffer.BlockCopy(BodyImage, 0, buffer, index, bodyLength);
                     index += bodyLength;
@@ -143,7 +193,7 @@ namespace GSF.PhasorProtocols
 
                 int footerLength = FooterLength;
 
-                if (footerLength > 0)
+                if (FooterImage != null && footerLength > 0)
                     Buffer.BlockCopy(FooterImage, 0, buffer, index, footerLength);
 
                 return buffer;
@@ -192,9 +242,9 @@ namespace GSF.PhasorProtocols
             }
         }
 
-        #endregion
+#endregion
 
-        #region [ Methods ]
+#region [ Methods ]
 
         /// <summary>
         /// Generates binary image of the object and copies it into the given buffer, for <see cref="ISupportBinaryImage.BinaryLength"/> bytes.
@@ -221,6 +271,6 @@ namespace GSF.PhasorProtocols
             return length;
         }
 
-        #endregion
+#endregion
     }
 }
