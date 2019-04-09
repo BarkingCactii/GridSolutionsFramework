@@ -463,7 +463,6 @@ namespace GSF.Parsing
                 //UnparsedBuffer = null;
                 if ((object)UnparsedBuffer != null)
                 {
-                    Common.Dump("UnparsedBuffer length = " + UnparsedBuffer.Length.ToString());
                     // Combine remaining buffer from last call and current buffer together as a single image
                     buffer = UnparsedBuffer.Combine(0, UnparsedBuffer.Length, buffer, offset, count);
                     offset = 0;
