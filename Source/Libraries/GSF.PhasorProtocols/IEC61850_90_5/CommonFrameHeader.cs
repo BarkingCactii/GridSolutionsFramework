@@ -415,6 +415,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
                                         // skip past 0x61, 0x81 and len fields
                                         index += 3; // JH should be 2 or 3?
 
+                                        // parsing starts at 0x80 gocbRef
                                         Common.Dump(buffer, index, "Header");
                                         // Validate goose value PDU tag exists and skip past it
 //                                        buffer.ValidateTag(GooseTag.GPdu, ref index);

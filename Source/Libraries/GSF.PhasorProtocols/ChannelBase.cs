@@ -24,6 +24,7 @@
 //       Modified Header.
 //
 //******************************************************************************************************
+//#define jeff
 
 using System;
 using System.Collections.Generic;
@@ -122,7 +123,6 @@ namespace GSF.PhasorProtocols
         {
             get
             {
-
 #if jeff
                 Type type = typeof(ChannelBase);
 

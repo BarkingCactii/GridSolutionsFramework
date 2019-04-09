@@ -2354,7 +2354,7 @@ namespace PhasorProtocolAdapters
 
                     try
                     {
-                        newConfigurationFrame.GenerateBinaryImage(newConfigFrameBuffer, 0);
+                        newConfigurationFrame.GenerateBinaryImage(newConfigFrameBuffer, 0); 
                     }
                     catch (Exception ex)
                     {

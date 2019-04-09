@@ -1131,6 +1131,20 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             return String.Format("{0} ({1}): ", DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss"), Thread.CurrentThread.ManagedThreadId);
         }
 
+        private static String CreateFile(int threadId)
+        {
+            String fileName = String.Format("debug-{0}.txt", threadId);
+            if ( File.Exists(fileName)) {
+                DateTime fileTimeStamp = File.GetLastWriteTime(fileName);
+                TimeSpan timeDiff = DateTime.Now - fileTimeStamp;
+                if ( timeDiff.TotalSeconds > 300 )
+                {
+                    File.Delete(fileName);
+                }
+            }
+            return fileName;
+        }
+
         public static void Dump(byte[] binary)
         {
             int numberTries = 10;
@@ -1147,7 +1161,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
                     outputStr += Environment.NewLine;
                     int threadId = 0;
                     outputStr = Common.TimeStamp(out threadId) + outputStr;
-                    File.AppendAllText(String.Format("jeff-{0}.txt", threadId), outputStr);
+                    File.AppendAllText(Common.CreateFile(threadId), outputStr);
                     return;
                 }
                 catch
@@ -1171,7 +1185,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
                 {
                     int threadId = 0;
                     String outputStr = Common.TimeStamp(out threadId) + str + Environment.NewLine;
-                    File.AppendAllText(String.Format("jeff-{0}.txt", threadId), outputStr);
+                    File.AppendAllText(Common.CreateFile(threadId), outputStr);
 
 //                    File.AppendAllText("jeff.txt", Common.TimeStamp() + str + "\n");
                     return;
@@ -1218,7 +1232,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
 
                     int threadId = 0;
                     outputStr = Common.TimeStamp(out threadId) + outputStr;
-                    File.AppendAllText(String.Format("jeff-{0}.txt", threadId), outputStr);
+                    File.AppendAllText(Common.CreateFile(threadId), outputStr);
 
                     //File.AppendAllText("jeff.txt", Common.TimeStamp() + outputStr);
                     return;
