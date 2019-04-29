@@ -17,7 +17,7 @@
     <DebugType>full</DebugType>
     <DefineDebug>true</DefineDebug>
     <DefineTrace>true</DefineTrace>
-    <OutputPath>..\..\..\..\Build\Output\Debug\Applications\SIEGate\</OutputPath>
+    <OutputPath>..\..\..\Build\Output\Debug\Libraries\</OutputPath>
     <DocumentationFile>
     </DocumentationFile>
     <RemoveIntegerChecks>true</RemoveIntegerChecks>
@@ -54,10 +54,6 @@
     <Reference Include="GSF.Communication, Version=2.3.119.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\..\SIEGate-master\Source\Dependencies\GSF\GSF.Communication.dll</HintPath>
-    </Reference>
-    <Reference Include="GSF.Core, Version=2.3.119.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\SIEGate-master\Source\Dependencies\GSF\GSF.Core.dll</HintPath>
     </Reference>
     <Reference Include="GSF.TimeSeries, Version=2.3.119.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -320,6 +316,12 @@
   </ItemGroup>
   <ItemGroup>
     <CodeAnalysisDictionary Include="CodeAnalysisDictionary.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\GSF.Core\GSF.Core.csproj">
+      <Project>{ff3fcba6-f01a-4ec2-bc3f-6ba832afcf88}</Project>
+      <Name>GSF.Core</Name>
+    </ProjectReference>
   </ItemGroup>
   <Target Name="AfterBuild">
     <CallTarget Targets="SignBuild" />

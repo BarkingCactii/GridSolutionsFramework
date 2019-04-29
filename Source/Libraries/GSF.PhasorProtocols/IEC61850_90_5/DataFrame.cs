@@ -889,12 +889,13 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             if ((object)m_configurationFrame != null)
             {
                 // Validate that sample size matches current configuration
+                /*
                 if (dataBuffer.Length != m_configurationFrame.GetCalculatedGooseLength())
                 {
                     // If it doesn't check configuration hasn't changed
                     numDataBytes = ParseXmlConfig();
                 }
-
+                
                 if (dataBuffer.Length != m_configurationFrame.GetCalculatedGooseLength())
                 {
                     // (Last chance) Possible frequnecy data is missing which is included in calculated lenght by default
@@ -902,7 +903,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
                     // i dont think possible to check TESTn
 //                    throw new InvalidOperationException(String.Format("Configuration does not match data sample size - Expected {0}, but received {1} bytes from packet and {2} bytes from XML calculation", m_configurationFrame.GetCalculatedGooseLength(), dataBuffer.Length, numDataBytes));
                 }
-
+                */
                 // Parse the sequence (same as SV)
                 base.ParseBodyImage(dataBuffer, 0, dataBuffer.Length);
             }
@@ -924,11 +925,19 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             dsSet.ReadXml(stringReader);
             */
 
-           // return 0;
+            // return 0;
+
             int numDataBytes = 0;
             bool statusDefined = false;
+
+
             ConfigurationFrame configFrame = new ConfigurationFrame(Common.Timebase, 1, DateTime.UtcNow.Ticks, m_sampleRate);
-            ConfigurationCell configCell = new ConfigurationCell(configFrame, (ushort)(1 + configFrame.Cells.Count), LineFrequency.Hz50);
+            ConfigurationCell configCell = new ConfigurationCell(configFrame, (ushort)(m_idCode + configFrame.Cells.Count), LineFrequency.Hz60)
+            {
+                StationName = m_stationName + (configFrame.Cells.Count + 1)
+            };
+
+//            ConfigurationCell configCell = new ConfigurationCell(configFrame, (ushort)(1 + configFrame.Cells.Count), LineFrequency.Hz50);
             String exceptionMessage = "";
             try
             {
@@ -999,18 +1008,18 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
                             case "STRING":
                                 {
                                     // can't be determined
-                                 //   DigitalDefinition digital = new DigitalDefinition(configCell, locNode.Value, 0, 1);
-                                 //   digital.Label = "String";
-                                 //   configCell.DigitalDefinitions.Add(digital);
+                                    DigitalDefinition digital = new DigitalDefinition(configCell, locNode.Value, 0, 1);
+                                    digital.Label = "String";
+                                    configCell.DigitalDefinitions.Add(digital);
 
                                     numDataBytes += 0;
                                     break;
                                 }
                             case "BOOL":
                                 {
-                                  //  DigitalDefinition digital = new DigitalDefinition(configCell, locNode.Value, 0, 1);
-                                  //  digital.Label = "hahahaha";
-                                //    configCell.DigitalDefinitions.Add(digital);
+                                    DigitalDefinition digital = new DigitalDefinition(configCell, locNode.Value, 0, 1);
+                                    digital.Label = "hahahaha";
+                                   configCell.DigitalDefinitions.Add(digital);
 
                                   //  numDataBytes += 5;
                                   //  configCell.AnalogDefinitions.Add(new AnalogDefinition(configCell, locNode.Value, 1, 0.0D, AnalogType.SinglePointOnWave));
@@ -1115,6 +1124,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             configFrame.Cells.Add(configCell);
 
             // Publish configuration frame
+//            PublishNewGooseConfigurationFrame(configFrame);
             PublishNewConfigurationFrame(configFrame);
 
             return numDataBytes;
@@ -1461,6 +1471,53 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
                 configFrame.Cells.Add(configCell);
                 PublishNewConfigurationFrame(configFrame);
             }
+        }
+
+        public void PublishNewGooseConfigurationFrame(ConfigurationFrame configFrame)
+        {
+            // Cache new configuration
+            m_configurationFrame = configFrame;
+
+            // Cache new associated configuration frame
+            ConfigurationFrame = configFrame;
+
+            // Update the frame level parsing state
+            bool trustHeaderLength = true;
+            bool validateCheckSum = true;
+
+            if ((object)State != null)
+            {
+                trustHeaderLength = State.TrustHeaderLength;
+                validateCheckSum = State.ValidateCheckSum;
+            }
+
+            DataFrameParsingState parsingState = new DataFrameParsingState(CommonHeader.FrameLength, configFrame, DataCell.CreateNewCell, trustHeaderLength, validateCheckSum);
+            CommonHeader.State = parsingState;
+            State = parsingState;
+
+            // Update local associated configuration cells
+            for (int i = 0; i < configFrame.Cells.Count; i++)
+            {
+                ConfigurationCell configCell = configFrame.Cells[i];
+
+                // Update associated configuration cell
+                if (Cells.Count < i + 1)
+                    Cells.Add(new IEC61850_90_5.DataCell(this, new IEC61850_90_5.ConfigurationCell(this.ConfigurationFrame)));
+
+                Cells[i].ConfigurationCell = configCell;
+
+                // Update local parsing state with new configuration info
+                Cells[i].State = new DataCellParsingState(
+                    configCell,
+                    PhasorValue.CreateNewValue,
+                    FrequencyValue.CreateNewValue,
+                    AnalogValue.CreateNewValue,
+                    DigitalValue.CreateNewValue);
+            }
+
+            // Publish the configuration frame to the rest of the system
+            if (CommonHeader.PublishFrame != null)
+                CommonHeader.PublishFrame(configFrame);
         }
 
         // Exposes a newly created configuration frame
