@@ -602,8 +602,11 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
 
             // Make sure configuration frame gets assigned before parsing begins, if available...
             if (configurationFrame != null)
+            {
                 ConfigurationFrame = configurationFrame as ConfigurationFrame;
-
+                if (configurationFrame.Cells[0].AnalogDefinitions.Count != 14)
+                    ConfigurationFrame = configurationFrame as ConfigurationFrame;
+            }
             //int tagLength, index = startIndex;
 
             // Header has already been parsed, skip past it
@@ -930,11 +933,14 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             int numDataBytes = 0;
             bool statusDefined = false;
 
+            // if we don't set it, it will be null
+            m_stationName = m_msvID;
 
             ConfigurationFrame configFrame = new ConfigurationFrame(Common.Timebase, 1, DateTime.UtcNow.Ticks, m_sampleRate);
-            ConfigurationCell configCell = new ConfigurationCell(configFrame, (ushort)(m_idCode + configFrame.Cells.Count), LineFrequency.Hz60)
+            ConfigurationCell configCell = new ConfigurationCell(configFrame, (ushort)(1 + configFrame.Cells.Count), LineFrequency.Hz60)
+            //           ConfigurationCell configCell = new ConfigurationCell(configFrame, (ushort)(m_idCode + configFrame.Cells.Count), LineFrequency.Hz60)
             {
-                StationName = m_stationName + (configFrame.Cells.Count + 1)
+                StationName = m_stationName// + (configFrame.Cells.Count + 1)
             };
 
 //            ConfigurationCell configCell = new ConfigurationCell(configFrame, (ushort)(1 + configFrame.Cells.Count), LineFrequency.Hz50);
@@ -961,8 +967,8 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
                             case "FLAG":
                                 {
                                     numDataBytes += 1;
-                                 //   configCell.DigitalDefinitions.Add(new DigitalDefinition(configCell, locNode.Value, 0, 1));
-                                    
+                                    //   configCell.DigitalDefinitions.Add(new DigitalDefinition(configCell, locNode.Value, 0, 1));
+
                                     statusDefined = true;
                                     break;
                                 }
@@ -1018,7 +1024,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
                             case "BOOL":
                                 {
                                     DigitalDefinition digital = new DigitalDefinition(configCell, locNode.Value, 0, 1);
-                                    digital.Label = "hahahaha";
+                                    digital.Label = "Bool";
                                    configCell.DigitalDefinitions.Add(digital);
 
                                   //  numDataBytes += 5;
@@ -1120,6 +1126,13 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             if (!statusDefined)
                 throw new InvalidOperationException("No status flag signal was defined.");
 
+            /* 
+             * test
+            PhasorDefinition aphasor = new PhasorDefinition(configCell, "VPHA", 1, 0.0D, PhasorType.Voltage, null);
+            aphasor.Label = "A VPHA Label";
+            configCell.PhasorDefinitions.Add(aphasor);// new PhasorDefinition(configCell, locNode.Value, 1, 0.0D, PhasorType.Voltage, null));
+            configCell.PhasorDefinitions.Add(new PhasorDefinition(configCell, "IPHA", 1, 0.0D, PhasorType.Current, null));
+            */
             // Add cell to configuration frame
             configFrame.Cells.Add(configCell);
 
@@ -1492,6 +1505,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             }
 
             DataFrameParsingState parsingState = new DataFrameParsingState(CommonHeader.FrameLength, configFrame, DataCell.CreateNewCell, trustHeaderLength, validateCheckSum);
+            
             CommonHeader.State = parsingState;
             State = parsingState;
 

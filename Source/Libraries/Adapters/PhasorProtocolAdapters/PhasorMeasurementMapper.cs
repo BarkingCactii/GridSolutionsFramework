@@ -1719,9 +1719,27 @@ namespace PhasorProtocolAdapters
             {
                 try
                 {
+                    
                     // Lookup device by its label (if needed), then by its ID code
-                    if ((object)m_labelDefinedDevices != null &&
-                        m_labelDefinedDevices.TryGetValue(parsedDevice.StationName.ToNonNullString(), out statisticsHelper) ||
+                    if (parsedDevice.StationName != "Shelby" && parsedDevice.StationName != "NP_PMU_SIM")
+                    {
+                        Console.WriteLine("break here");
+                        bool result = m_definedDevices.TryGetValue(parsedDevice.IDCode, out statisticsHelper);
+                        if ( result == false )
+                        {
+                            // try first index
+                            result = m_definedDevices.TryGetValue(1, out statisticsHelper);
+                        }
+                        Console.WriteLine("break here");
+                    }
+                    else
+                    {
+                        m_definedDevices.TryGetValue(parsedDevice.IDCode, out statisticsHelper);
+                    }
+                    
+                    if (((object)m_labelDefinedDevices != null &&
+                        m_labelDefinedDevices.TryGetValue(parsedDevice.StationName.ToNonNullString(), out statisticsHelper)) ||
+                        //statisticsHelper != null)
                         m_definedDevices.TryGetValue(parsedDevice.IDCode, out statisticsHelper))
                     {
                         definedDevice = statisticsHelper.Device;
