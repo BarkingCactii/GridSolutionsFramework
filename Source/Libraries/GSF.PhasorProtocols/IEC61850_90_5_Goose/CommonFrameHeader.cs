@@ -30,7 +30,7 @@ using System.Runtime.Serialization;
 using System.Security.Cryptography;
 using GSF.Parsing;
 
-namespace GSF.PhasorProtocols.IEC61850_90_5
+namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
 {
     /// <summary>
     /// Represents the common header for all IEC 61850-90-5 frames of data.
@@ -155,7 +155,6 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             }
         }
 
-
         /// <summary>
         /// Creates a new <see cref="CommonFrameHeader"/> from given <paramref name="buffer"/>.
         /// </summary>
@@ -252,7 +251,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             if (length > Common.SessionHeaderSize)
             {
                 // Manually assign frame type - this is an IEC 61850-90-5 data frame
-                m_frameType = IEC61850_90_5.FrameType.DataFrame;
+                m_frameType = IEC61850_90_5_Goose.FrameType.DataFrame;
 
                 // Calculate CLTP tag length
                 int cltpTagLength = buffer[startIndex] + 1;
@@ -286,7 +285,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             if (length > Common.SessionHeaderSize)
             {
                 // Manually assign frame type - this is an IEC 61850-90-5 data frame
-                m_frameType = IEC61850_90_5.FrameType.DataFrame;
+                m_frameType = IEC61850_90_5_Goose.FrameType.DataFrame;
 
                 // Calculate CLTP tag length
                 int cltpTagLength = buffer[startIndex] + 1;
@@ -692,7 +691,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             m_timebase = info.GetUInt32("timebase");
             m_timeQualityFlags = info.GetUInt32("timeQualityFlags");
 
-            if (m_frameType == IEC61850_90_5.FrameType.DataFrame)
+            if (m_frameType == IEC61850_90_5_Goose.FrameType.DataFrame)
             {
                 m_headerLength = info.GetUInt16("headerLength");
                 m_dataLength = info.GetUInt16("dataLength");
@@ -806,7 +805,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             get
             {
                 // If it's not an IEC 61850-90-5 data frame, then it's a C37.118 style frame
-                if (m_frameType != IEC61850_90_5.FrameType.DataFrame)
+                if (m_frameType != IEC61850_90_5_Goose.FrameType.DataFrame)
                     return FixedLength;
 
                 // If calculated length is available, prefer that
@@ -915,7 +914,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             get
             {
                 // Data length will be frame length minus common header length minus crc16
-                if (m_frameType != IEC61850_90_5.FrameType.DataFrame)
+                if (m_frameType != IEC61850_90_5_Goose.FrameType.DataFrame)
 
                     return (ushort)(FrameLength - FixedLength - 2);
 
@@ -924,7 +923,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             set
             {
 
-                if (m_frameType != IEC61850_90_5.FrameType.DataFrame)
+                if (m_frameType != IEC61850_90_5_Goose.FrameType.DataFrame)
                 {
                     if (value > Common.MaximumDataLength)
                         throw new OverflowException("Data length value cannot exceed " + Common.MaximumDataLength);
@@ -1245,11 +1244,11 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
                 // Translate IEC 61850-90-5 specific frame type to fundamental frame type
                 switch (m_frameType)
                 {
-                    case IEC61850_90_5.FrameType.DataFrame:
+                    case IEC61850_90_5_Goose.FrameType.DataFrame:
                         return FundamentalFrameType.DataFrame;
-                    case IEC61850_90_5.FrameType.ConfigurationFrame:
+                    case IEC61850_90_5_Goose.FrameType.ConfigurationFrame:
                         return FundamentalFrameType.ConfigurationFrame;
-                    case IEC61850_90_5.FrameType.CommandFrame:
+                    case IEC61850_90_5_Goose.FrameType.CommandFrame:
                         return FundamentalFrameType.CommandFrame;
                     default:
                         return FundamentalFrameType.Undetermined;
@@ -1267,7 +1266,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
                 byte[] buffer;
                 int index;
 
-                if (m_frameType == IEC61850_90_5.FrameType.DataFrame)
+                if (m_frameType == IEC61850_90_5_Goose.FrameType.DataFrame)
                 {
                     // Add two bytes to header length for CLTP tag encoding
                     buffer = new byte[IECFixedLength];
@@ -1288,7 +1287,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
                     // Start encoding IEC61850-90-5 data frame header
                     buffer[0] = 0x01; // LI - Transport Unit Data header len (variable part empty)
                     buffer[1] = Common.CltpTag;
-                    buffer[2] = (byte)SessionType.SampledValues;
+                    buffer[2] = (byte)SessionType.Goose;//.SampledValues;
                     buffer[3] = Common.SessionHeaderSize;
                     buffer[4] = 0x80;
                     buffer[5] = 0x16;
@@ -1389,7 +1388,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             attributes.Add("Time Quality Indicator Code", (uint)TimeQualityIndicatorCode + ": " + TimeQualityIndicatorCode);
             attributes.Add("Time Base", Timebase + (Timebase != Common.Timebase ? " - NON STANDARD" : ""));
 
-            if (m_frameType != IEC61850_90_5.FrameType.DataFrame)
+            if (m_frameType != IEC61850_90_5_Goose.FrameType.DataFrame)
             {
                 attributes.Add("Version", Version.ToString());
             }
@@ -1440,7 +1439,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             info.AddValue("timebase", m_timebase);
             info.AddValue("timeQualityFlags", m_timeQualityFlags);
 
-            if (m_frameType == IEC61850_90_5.FrameType.DataFrame)
+            if (m_frameType == IEC61850_90_5_Goose.FrameType.DataFrame)
             {
                 info.AddValue("headerLength", m_headerLength);
                 info.AddValue("dataLength", m_dataLength);

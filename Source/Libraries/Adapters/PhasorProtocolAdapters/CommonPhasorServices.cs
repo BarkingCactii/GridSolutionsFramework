@@ -846,6 +846,9 @@ namespace PhasorProtocolAdapters
                 if (Convert.ToInt32(database.Connection.ExecuteScalar("SELECT COUNT(*) FROM Protocol WHERE Acronym=\'Iec61850_90_5\'")) == 0)
                     database.Connection.ExecuteNonQuery("INSERT INTO Protocol(Acronym, Name, Type, Category, AssemblyName, TypeName, LoadOrder) VALUES('Iec61850_90_5', 'IEC 61850-90-5', 'Frame', 'Phasor', 'PhasorProtocolAdapters.dll', 'PhasorProtocolAdapters.PhasorMeasurementMapper', " + (protocols.Rows.Count + 2) + ")");
 
+                if (Convert.ToInt32(database.Connection.ExecuteScalar("SELECT COUNT(*) FROM Protocol WHERE Acronym=\'Iec61850_90_5_Goose\'")) == 0)
+                    database.Connection.ExecuteNonQuery("INSERT INTO Protocol(Acronym, Name, Type, Category, AssemblyName, TypeName, LoadOrder) VALUES('Iec61850_90_5_Goose', 'IEC 61850-90-5 Goose', 'Frame', 'Phasor', 'PhasorProtocolAdapters.dll', 'PhasorProtocolAdapters.PhasorMeasurementMapper', " + (protocols.Rows.Count + 2) + ")");
+
                 if (Convert.ToInt32(database.Connection.ExecuteScalar("SELECT COUNT(*) FROM Protocol WHERE Acronym=\'GatewayTransport\'")) == 0)
                     database.Connection.ExecuteNonQuery("INSERT INTO Protocol(Acronym, Name, Type, Category, AssemblyName, TypeName, LoadOrder) VALUES('GatewayTransport', 'Gateway Transport', 'Measurement', 'Gateway', 'GSF.TimeSeries.dll', 'GSF.TimeSeries.Transport.DataSubscriber', " + (protocols.Rows.Count + 3) + ")");
 
@@ -905,7 +908,7 @@ namespace PhasorProtocolAdapters
                 statusMessage("Validating device measurements...");
 
                 // Get protocol ID list for those protocols that support time quality flags
-                DataTable timeQualityProtocols = database.Connection.RetrieveData(database.AdapterType, "SELECT ID FROM Protocol WHERE Acronym = 'IeeeC37_118V1' OR Acronym = 'IeeeC37_118V2' OR Acronym = 'IeeeC37_118D6' OR Acronym = 'Iec61850_90_5'");
+                DataTable timeQualityProtocols = database.Connection.RetrieveData(database.AdapterType, "SELECT ID FROM Protocol WHERE Acronym = 'IeeeC37_118V1' OR Acronym = 'IeeeC37_118V2' OR Acronym = 'IeeeC37_118D6' OR Acronym = 'Iec61850_90_5' OR Acronym = 'Iec61850_90_5_Goose'");
                 StringBuilder timeQualityProtocolIDList = new StringBuilder();
                 string timeQualityProtocolIDs;
 

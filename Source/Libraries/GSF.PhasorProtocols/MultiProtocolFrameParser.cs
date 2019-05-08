@@ -140,7 +140,12 @@ namespace GSF.PhasorProtocols
         /// <summary>
         /// IEC 61850-90-5 protocol.
         /// </summary>
-        IEC61850_90_5
+        IEC61850_90_5,
+        /// <summary>
+        /// IEC 61850-90-5 Goose protocol.
+        /// </summary>
+        IEC61850_90_5_Goose,
+
     }
 
     #endregion
@@ -1881,6 +1886,9 @@ namespace GSF.PhasorProtocols
                     case PhasorProtocol.IEC61850_90_5:
                         m_connectionParameters = new IEC61850_90_5.ConnectionParameters();
                         break;
+                    case PhasorProtocol.IEC61850_90_5_Goose:
+                        m_connectionParameters = new IEC61850_90_5_Goose.ConnectionParameters();
+                        break;
                     case PhasorProtocol.Macrodyne:
                         m_connectionParameters = new Macrodyne.ConnectionParameters();
                         break;
@@ -2881,30 +2889,59 @@ namespace GSF.PhasorProtocols
                     m_frameParser = new IEEE1344.FrameParser(m_checkSumValidationFrameTypes, m_trustHeaderLength);
                     break;
                 case PhasorProtocol.IEC61850_90_5:
-                    m_frameParser = new IEC61850_90_5.FrameParser(m_checkSumValidationFrameTypes, m_trustHeaderLength);
-
-                    // Check for IEC 61850-90-5 protocol specific parameters in connection string
-                    IEC61850_90_5.ConnectionParameters iecParameters = m_connectionParameters as IEC61850_90_5.ConnectionParameters;
-
-                    if ((object)iecParameters != null)
                     {
-                        if (settings.TryGetValue("useETRConfiguration", out setting))
-                            iecParameters.UseETRConfiguration = setting.ParseBoolean();
+                        m_frameParser = new IEC61850_90_5.FrameParser(m_checkSumValidationFrameTypes, m_trustHeaderLength);
 
-                        if (settings.TryGetValue("guessConfiguration", out setting))
-                            iecParameters.GuessConfiguration = setting.ParseBoolean();
+                        // Check for IEC 61850-90-5 protocol specific parameters in connection string
+                        IEC61850_90_5.ConnectionParameters iecParameters = m_connectionParameters as IEC61850_90_5.ConnectionParameters;
 
-                        if (settings.TryGetValue("parseRedundantASDUs", out setting))
-                            iecParameters.ParseRedundantASDUs = setting.ParseBoolean();
+                        if ((object)iecParameters != null)
+                        {
+                            if (settings.TryGetValue("useETRConfiguration", out setting))
+                                iecParameters.UseETRConfiguration = setting.ParseBoolean();
 
-                        if (settings.TryGetValue("ignoreSignatureValidationFailures", out setting))
-                            iecParameters.IgnoreSignatureValidationFailures = setting.ParseBoolean();
+                            if (settings.TryGetValue("guessConfiguration", out setting))
+                                iecParameters.GuessConfiguration = setting.ParseBoolean();
 
-                        if (settings.TryGetValue("ignoreSampleSizeValidationFailures", out setting))
-                            iecParameters.IgnoreSampleSizeValidationFailures = setting.ParseBoolean();
+                            if (settings.TryGetValue("parseRedundantASDUs", out setting))
+                                iecParameters.ParseRedundantASDUs = setting.ParseBoolean();
+
+                            if (settings.TryGetValue("ignoreSignatureValidationFailures", out setting))
+                                iecParameters.IgnoreSignatureValidationFailures = setting.ParseBoolean();
+
+                            if (settings.TryGetValue("ignoreSampleSizeValidationFailures", out setting))
+                                iecParameters.IgnoreSampleSizeValidationFailures = setting.ParseBoolean();
+                        }
+
+                        break;
                     }
+                case PhasorProtocol.IEC61850_90_5_Goose:
+                    {
+                        m_frameParser = new IEC61850_90_5_Goose.FrameParser(m_checkSumValidationFrameTypes, m_trustHeaderLength);
 
-                    break;
+                        // Check for IEC 61850-90-5 protocol specific parameters in connection string
+                        IEC61850_90_5_Goose.ConnectionParameters iecParameters = m_connectionParameters as IEC61850_90_5_Goose.ConnectionParameters;
+
+                        if ((object)iecParameters != null)
+                        {
+                            if (settings.TryGetValue("useETRConfiguration", out setting))
+                                iecParameters.UseETRConfiguration = setting.ParseBoolean();
+
+                            if (settings.TryGetValue("guessConfiguration", out setting))
+                                iecParameters.GuessConfiguration = setting.ParseBoolean();
+
+                            if (settings.TryGetValue("parseRedundantASDUs", out setting))
+                                iecParameters.ParseRedundantASDUs = setting.ParseBoolean();
+
+                            if (settings.TryGetValue("ignoreSignatureValidationFailures", out setting))
+                                iecParameters.IgnoreSignatureValidationFailures = setting.ParseBoolean();
+
+                            if (settings.TryGetValue("ignoreSampleSizeValidationFailures", out setting))
+                                iecParameters.IgnoreSampleSizeValidationFailures = setting.ParseBoolean();
+                        }
+
+                        break;
+                    }
                 case PhasorProtocol.BPAPDCstream:
                     m_frameParser = new BPAPDCstream.FrameParser(m_checkSumValidationFrameTypes, m_trustHeaderLength);
 
@@ -3385,6 +3422,9 @@ namespace GSF.PhasorProtocols
                         case PhasorProtocol.IEC61850_90_5:
                             commandFrame = new IEC61850_90_5.CommandFrame(m_deviceID, command, 1);
                             break;
+                        case PhasorProtocol.IEC61850_90_5_Goose:
+                            commandFrame = new IEC61850_90_5_Goose.CommandFrame(m_deviceID, command, 1);
+                            break;
                         case PhasorProtocol.SelFastMessage:
                             // Get defined message period
                             MessagePeriod messagePeriod = MessagePeriod.DefaultRate;
@@ -3557,7 +3597,7 @@ namespace GSF.PhasorProtocols
         private bool DeriveCommandSupport()
         {
             // Command support is based on phasor protocol, transport protocol and connection style
-            if (IsIEEEProtocol || m_phasorProtocol == PhasorProtocol.IEC61850_90_5 || m_phasorProtocol == PhasorProtocol.SelFastMessage || m_phasorProtocol == PhasorProtocol.Macrodyne)
+            if (IsIEEEProtocol || m_phasorProtocol == PhasorProtocol.IEC61850_90_5 || m_phasorProtocol == PhasorProtocol.IEC61850_90_5_Goose || m_phasorProtocol == PhasorProtocol.SelFastMessage || m_phasorProtocol == PhasorProtocol.Macrodyne)
             {
                 // IEEE protocols using TCP or Serial connection support device commands
                 if (m_transportProtocol == TransportProtocol.Tcp || m_transportProtocol == TransportProtocol.Serial)
@@ -3604,7 +3644,7 @@ namespace GSF.PhasorProtocols
             try
             {
                 // Attempt to stop real-time data, waiting a maximum of three seconds for this activity
-                if (!m_skipDisableRealTimeData && m_phasorProtocol != PhasorProtocol.IEC61850_90_5)
+                if (!m_skipDisableRealTimeData && m_phasorProtocol != PhasorProtocol.IEC61850_90_5 && m_phasorProtocol != PhasorProtocol.IEC61850_90_5_Goose)
                 {
                     // Some devices will only send a config frame once data streaming has been disabled, so
                     // we use this code to disable real-time data and wait for data to stop streaming...
@@ -4031,7 +4071,8 @@ namespace GSF.PhasorProtocols
         {
             // We automatically request enabling of real-time data upon reception of config frame if requested. Note that SEL Fast Message will
             // have already been enabled at this point so we don't duplicate request for enabling real-time data stream
-            if ((object)m_configurationFrame == null && m_deviceSupportsCommands && m_autoStartDataParsingSequence && m_phasorProtocol != PhasorProtocol.SelFastMessage && m_phasorProtocol != PhasorProtocol.IEC61850_90_5)
+            if ((object)m_configurationFrame == null && m_deviceSupportsCommands && m_autoStartDataParsingSequence && 
+                m_phasorProtocol != PhasorProtocol.SelFastMessage && m_phasorProtocol != PhasorProtocol.IEC61850_90_5 && m_phasorProtocol != PhasorProtocol.IEC61850_90_5_Goose)
                 SendDeviceCommand(DeviceCommand.EnableRealTimeData);
 
             m_configurationFrame = e.Argument;

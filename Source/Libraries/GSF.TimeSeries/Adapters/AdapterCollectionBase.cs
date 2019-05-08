@@ -1468,6 +1468,8 @@ namespace GSF.TimeSeries.Adapters
                 item.ProcessException += item_ProcessException;
                 item.ConfigurationChanged += item_ConfigurationChanged;
                 item.Disposed += item_Disposed;
+                if (item.Name == "GOSW")
+                    item.Name = "GOSW";
 
                 try
                 {

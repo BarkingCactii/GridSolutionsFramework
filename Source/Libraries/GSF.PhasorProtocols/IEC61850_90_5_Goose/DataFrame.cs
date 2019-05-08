@@ -36,7 +36,7 @@ using GSF.IO;
 using GSF.Parsing;
 using GSF.Units.EE;
 
-namespace GSF.PhasorProtocols.IEC61850_90_5
+namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
 {
     /// <summary>
     /// Represents the IEC 61850-90-5 implementation of a <see cref="IDataFrame"/> that can be sent or received.
@@ -199,7 +199,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
         {
             get
             {
-                return IEC61850_90_5.FrameType.DataFrame;
+                return IEC61850_90_5_Goose.FrameType.DataFrame;
             }
         }
 
@@ -616,20 +616,22 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             m_configurationFrame = ConfigurationFrame;
 
             // Check session type
+            /*
             if (header.SessionID == SessionType.SampledValues)
             {
                 ParseSampledValues(buffer, header, startIndex, length);
             }
-            /*
-            else if (header.SessionID == SessionType.Goose)
+            else
+            */
+            if (header.SessionID == SessionType.Goose)
             {
                 ParseGoose(buffer, header, startIndex, length);
             }
-            */
             // We're not parsing any of the items remaining in the footer...
             return header.FrameLength;
         }
 
+        /*
         private void ParseSampledValues(byte[] buffer, CommonFrameHeader header, int startIndex, int length)
         {
             int tagLength;
@@ -793,8 +795,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
                     buffer.ValidateTag(SampledValueTag.UtcTimestamp, ref index);
             }
         }
-
-#if nocomment
+        */
         private void ParseGoose(byte[] buffer, CommonFrameHeader header, int startIndex, int length)
         {
             int tagLength;
@@ -939,8 +940,8 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             // if we don't set it, it will be null
             m_stationName = m_msvID;
 
-            IEC61850_90_5_Goose.ConfigurationFrame configFrame = new IEC61850_90_5_Goose.ConfigurationFrame(Common.Timebase, 1, DateTime.UtcNow.Ticks, m_sampleRate);
-            IEC61850_90_5_Goose.ConfigurationCell configCell = new IEC61850_90_5_Goose.ConfigurationCell(configFrame, (ushort)(1 + configFrame.Cells.Count), LineFrequency.Hz60)
+            ConfigurationFrame configFrame = new ConfigurationFrame(Common.Timebase, 1, DateTime.UtcNow.Ticks, m_sampleRate);
+            ConfigurationCell configCell = new ConfigurationCell(configFrame, (ushort)(1 + configFrame.Cells.Count), LineFrequency.Hz60)
             //           ConfigurationCell configCell = new ConfigurationCell(configFrame, (ushort)(m_idCode + configFrame.Cells.Count), LineFrequency.Hz60)
             {
                 StationName = m_stationName// + (configFrame.Cells.Count + 1)
@@ -978,7 +979,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
                             case "VPHA":
                                 {
                                     numDataBytes += 5;
-                                    IEC61850_90_5_Goose.PhasorDefinition phasor = new IEC61850_90_5_Goose.PhasorDefinition(configCell, locNode.Value, 1, 0.0D, PhasorType.Voltage, null);
+                                    PhasorDefinition phasor = new PhasorDefinition(configCell, locNode.Value, 1, 0.0D, PhasorType.Voltage, null);
                                     phasor.Label = "A VPHA Label";
                                     configCell.PhasorDefinitions.Add(phasor);// new PhasorDefinition(configCell, locNode.Value, 1, 0.0D, PhasorType.Voltage, null));
 
@@ -987,7 +988,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
                             case "IPHA":
                                 {
                                     numDataBytes += 5;
-                                    configCell.PhasorDefinitions.Add(new IEC61850_90_5_Goose.PhasorDefinition(configCell, locNode.Value, 1, 0.0D, PhasorType.Current, null));
+                                    configCell.PhasorDefinitions.Add(new PhasorDefinition(configCell, locNode.Value, 1, 0.0D, PhasorType.Current, null));
                                     
                                     break;
                                 }
@@ -999,25 +1000,25 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
                             case "DFDT":
                                 {
                                     numDataBytes += 5;
-                                    configCell.FrequencyDefinition = new IEC61850_90_5_Goose.FrequencyDefinition(configCell, "Frequency");
+                                    configCell.FrequencyDefinition = new FrequencyDefinition(configCell, "Frequency");
                                     break;
                                 }
                             case "ALOG":
                                 {
                                     numDataBytes += 5;
-                                    configCell.AnalogDefinitions.Add(new IEC61850_90_5_Goose.AnalogDefinition(configCell, locNode.Value, 1, 0.0D, AnalogType.SinglePointOnWave));
+                                    configCell.AnalogDefinitions.Add(new AnalogDefinition(configCell, locNode.Value, 1, 0.0D, AnalogType.SinglePointOnWave));
                                     break;
                                 }
                             case "DIGI":
                                 {
                                     numDataBytes += 5;
-                                    configCell.DigitalDefinitions.Add(new IEC61850_90_5_Goose.DigitalDefinition(configCell, locNode.Value, 0, 1));
+                                    configCell.DigitalDefinitions.Add(new DigitalDefinition(configCell, locNode.Value, 0, 1));
                                     break;
                                 }
                             case "STRING":
                                 {
                                     // can't be determined
-                                    IEC61850_90_5_Goose.DigitalDefinition digital = new IEC61850_90_5_Goose.DigitalDefinition(configCell, locNode.Value, 0, 1);
+                                    DigitalDefinition digital = new DigitalDefinition(configCell, locNode.Value, 0, 1);
                                     digital.Label = "String";
                                     configCell.DigitalDefinitions.Add(digital);
 
@@ -1026,7 +1027,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
                                 }
                             case "BOOL":
                                 {
-                                    IEC61850_90_5_Goose.DigitalDefinition digital = new IEC61850_90_5_Goose.DigitalDefinition(configCell, locNode.Value, 0, 1);
+                                    DigitalDefinition digital = new DigitalDefinition(configCell, locNode.Value, 0, 1);
                                     digital.Label = "Bool";
                                    configCell.DigitalDefinitions.Add(digital);
 
@@ -1140,14 +1141,11 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             configFrame.Cells.Add(configCell);
 
             // Publish configuration frame
-            //            PublishNewGooseConfigurationFrame(configFrame);
-//            IEC61850_90_5_Goose.DataFrame.PublishNewConfigurationFrame(configFrame);
+//            PublishNewGooseConfigurationFrame(configFrame);
             PublishNewConfigurationFrame(configFrame);
 
             return numDataBytes;
         }
-
-#endif
 
         // Attempt to parse an associated ETR configuration
         private void ParseETRConfiguration()
@@ -1627,6 +1625,6 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             info.AddValue("sampleRate", m_sampleRate);
         }
 
-#endregion
+        #endregion
     }
 }

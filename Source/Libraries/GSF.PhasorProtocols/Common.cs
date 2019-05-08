@@ -166,6 +166,8 @@ namespace GSF.PhasorProtocols
                     return "Macrodyne";
                 case PhasorProtocol.IEC61850_90_5:
                     return "IEC 61850-90-5";
+                case PhasorProtocol.IEC61850_90_5_Goose:
+                    return "IEC 61850-90-5 Goose";
                 default:
                     return protocol.ToString().Replace('_', '.').ToUpper();
             }
