@@ -199,7 +199,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
         }
 
         /// <summary>
-        /// Gets the <see cref="IEC61850_90_5.DraftRevision"/> of this <see cref="DigitalDefinition"/>.
+        /// Gets the <see cref="IEC61850_90_5_Goose.DraftRevision"/> of this <see cref="DigitalDefinition"/>.
         /// </summary>
         public DraftRevision DraftRevision
         {

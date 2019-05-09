@@ -56,7 +56,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             // Define new parsing state which defines constructors for key configuration values
             State = new ConfigurationCellParsingState(
                 PhasorDefinition.CreateNewDefinition,
-                IEC61850_90_5.FrequencyDefinition.CreateNewDefinition,
+                IEC61850_90_5_Goose.FrequencyDefinition.CreateNewDefinition,
                 AnalogDefinition.CreateNewDefinition,
                 DigitalDefinition.CreateNewDefinition);
         }

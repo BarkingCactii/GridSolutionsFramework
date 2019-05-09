@@ -49,7 +49,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             State = new DataCellParsingState(
                 configurationCell,
                 PhasorValue.CreateNewValue,
-                IEC61850_90_5.FrequencyValue.CreateNewValue,
+                IEC61850_90_5_Goose.FrequencyValue.CreateNewValue,
                 AnalogValue.CreateNewValue,
                 DigitalValue.CreateNewValue);
         }

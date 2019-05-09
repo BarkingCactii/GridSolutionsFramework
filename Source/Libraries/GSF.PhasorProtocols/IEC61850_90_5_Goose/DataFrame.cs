@@ -1020,7 +1020,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                                     // can't be determined
                                     DigitalDefinition digital = new DigitalDefinition(configCell, locNode.Value, 0, 1);
                                     digital.Label = "String";
-                                    configCell.DigitalDefinitions.Add(digital);
+                                  //  configCell.DigitalDefinitions.Add(digital);
 
                                     numDataBytes += 0;
                                     break;
@@ -1029,7 +1029,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                                 {
                                     DigitalDefinition digital = new DigitalDefinition(configCell, locNode.Value, 0, 1);
                                     digital.Label = "Bool";
-                                   configCell.DigitalDefinitions.Add(digital);
+                                 //  configCell.DigitalDefinitions.Add(digital);
 
                                   //  numDataBytes += 5;
                                   //  configCell.AnalogDefinitions.Add(new AnalogDefinition(configCell, locNode.Value, 1, 0.0D, AnalogType.SinglePointOnWave));
@@ -1490,7 +1490,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             }
         }
 
-        public void PublishNewGooseConfigurationFrame(ConfigurationFrame configFrame)
+        public void PublishNewConfigurationFrame(ConfigurationFrame configFrame)
         {
             // Cache new configuration
             m_configurationFrame = configFrame;
@@ -1520,7 +1520,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
 
                 // Update associated configuration cell
                 if (Cells.Count < i + 1)
-                    Cells.Add(new IEC61850_90_5.DataCell(this, new IEC61850_90_5.ConfigurationCell(this.ConfigurationFrame)));
+                    Cells.Add(new IEC61850_90_5_Goose.DataCell(this, new IEC61850_90_5_Goose.ConfigurationCell(this.ConfigurationFrame)));
 
                 Cells[i].ConfigurationCell = configCell;
 
@@ -1539,7 +1539,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
         }
 
         // Exposes a newly created configuration frame
-        public void PublishNewConfigurationFrame(ConfigurationFrame configFrame)
+        public void OLDPublishNewConfigurationFrame(ConfigurationFrame configFrame)
         {
             // Cache new configuration
             m_configurationFrame = configFrame;

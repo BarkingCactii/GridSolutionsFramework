@@ -1661,10 +1661,6 @@ namespace PhasorProtocolAdapters
             List<IMeasurement> deviceMappedMeasurements = new List<IMeasurement>();
             DeviceStatisticsHelper<ConfigurationCell> statisticsHelper;
             ConfigurationCell definedDevice;
-            PhasorValueCollection phasors;
-            AnalogValueCollection analogs;
-            DigitalValueCollection digitals;
-            IMeasurement[] measurements;
             long timestamp;
             int x, count;
 
@@ -1767,45 +1763,82 @@ namespace PhasorProtocolAdapters
                         MapMeasurementAttributes(mappedMeasurements, definedDevice.GetMetadata(m_definedMeasurements, SignalKind.Status), parsedDevice.GetStatusFlagsMeasurement());
 
                         // Map phase angles (PAn) and magnitudes (PMn)
-                        phasors = parsedDevice.PhasorValues;
-                        count = phasors.Count;
 
-                        for (x = 0; x < count; x++)
+                        try
                         {
-                            // Get composite phasor measurements
-                            measurements = phasors[x].Measurements;
+                            PhasorValueCollection phasors = parsedDevice.PhasorValues;
+                            count = phasors.Count;
 
-                            // Map angle
-                            MapMeasurementAttributes(deviceMappedMeasurements, definedDevice.GetMetadata(m_definedMeasurements, SignalKind.Angle, x, count), measurements[AngleIndex]);
+                            for (x = 0; x < count; x++)
+                            {
+                                // Get composite phasor measurements
+                                IMeasurement[] measurements = phasors[x].Measurements;
 
-                            // Map magnitude
-                            MapMeasurementAttributes(deviceMappedMeasurements, definedDevice.GetMetadata(m_definedMeasurements, SignalKind.Magnitude, x, count), measurements[MagnitudeIndex]);
+                                // Map angle
+                                MapMeasurementAttributes(deviceMappedMeasurements, definedDevice.GetMetadata(m_definedMeasurements, SignalKind.Angle, x, count), measurements[AngleIndex]);
+
+                                // Map magnitude
+                                MapMeasurementAttributes(deviceMappedMeasurements, definedDevice.GetMetadata(m_definedMeasurements, SignalKind.Magnitude, x, count), measurements[MagnitudeIndex]);
+                            }
+                        }
+                        catch
+                        {
+                            OnStatusMessage(MessageLevel.Warning, $"phasors error in ExtractFrameMeasurements");
                         }
 
-                        // Map frequency (FQ) and dF/dt (DF)
-                        measurements = parsedDevice.FrequencyValue.Measurements;
+                        try
+                        {
+                            // Map frequency (FQ) and dF/dt (DF)
+                            IMeasurement[] measurements = parsedDevice.FrequencyValue.Measurements;
 
-                        // Map frequency
-                        MapMeasurementAttributes(deviceMappedMeasurements, definedDevice.GetMetadata(m_definedMeasurements, SignalKind.Frequency), measurements[FrequencyIndex]);
+                            // Map frequency
+                            MapMeasurementAttributes(deviceMappedMeasurements, definedDevice.GetMetadata(m_definedMeasurements, SignalKind.Frequency), measurements[FrequencyIndex]);
 
-                        // Map dF/dt
-                        MapMeasurementAttributes(deviceMappedMeasurements, definedDevice.GetMetadata(m_definedMeasurements, SignalKind.DfDt), measurements[DfDtIndex]);
+                            // Map dF/dt
+                            MapMeasurementAttributes(deviceMappedMeasurements, definedDevice.GetMetadata(m_definedMeasurements, SignalKind.DfDt), measurements[DfDtIndex]);
+                        }
+                        catch
+                        {
+                            OnStatusMessage(MessageLevel.Warning, $"measurements or frequency error in ExtractFrameMeasurements");
+                        }
 
                         // Map analog values (AVn)
-                        analogs = parsedDevice.AnalogValues;
-                        count = analogs.Count;
+                        try
+                        {
+                            AnalogValueCollection analogs = parsedDevice.AnalogValues;
 
-                        // Map analog values
-                        for (x = 0; x < count; x++)
-                            MapMeasurementAttributes(deviceMappedMeasurements, definedDevice.GetMetadata(m_definedMeasurements, SignalKind.Analog, x, count), analogs[x].Measurements[0]);
+                            if (analogs != null)
+                            {
+                                count = analogs.Count;
+
+                                // Map analog values
+                                for (x = 0; x < count; x++)
+                                    MapMeasurementAttributes(deviceMappedMeasurements, definedDevice.GetMetadata(m_definedMeasurements, SignalKind.Analog, x, count), analogs[x].Measurements[0]);
+                            }
+                        }
+                        catch
+                        {
+                            OnStatusMessage(MessageLevel.Warning, $"analogs error in ExtractFrameMeasurements");
+                        }
 
                         // Map digital values (DVn)
-                        digitals = parsedDevice.DigitalValues;
-                        count = digitals.Count;
+                        try
+                        {
+                            DigitalValueCollection digitals = parsedDevice.DigitalValues;
 
-                        // Map digital values
-                        for (x = 0; x < count; x++)
-                            MapMeasurementAttributes(deviceMappedMeasurements, definedDevice.GetMetadata(m_definedMeasurements, SignalKind.Digital, x, count), digitals[x].Measurements[0]);
+                            if (digitals != null)
+                            {
+                                count = digitals.Count;
+
+                                // Map digital values
+                                for (x = 0; x < count; x++)
+                                    MapMeasurementAttributes(deviceMappedMeasurements, definedDevice.GetMetadata(m_definedMeasurements, SignalKind.Digital, x, count), digitals[x].Measurements[0]);
+                            }
+                        }
+                        catch
+                        {
+                            OnStatusMessage(MessageLevel.Warning, $"digitials error in ExtractFrameMeasurements");
+                        }
 
                         // Track measurement count statistics for this device
                         if (m_countOnlyMappedMeasurements)

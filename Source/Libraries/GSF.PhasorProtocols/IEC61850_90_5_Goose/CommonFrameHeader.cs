@@ -171,7 +171,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
         // ReSharper disable once UnusedParameter.Local
         public CommonFrameHeader(ConfigurationFrame configurationFrame, bool useETRConfiguration, bool guessConfiguration, bool parseRedundantASDUs, bool ignoreSignatureValidationFailures, bool ignoreSampleSizeValidationFailures, AngleFormat angleFormat, byte[] buffer, int startIndex, int length)
         {
-            const byte VersionNumberMask = (byte)IEC61850_90_5.FrameType.VersionNumberMask;
+            const byte VersionNumberMask = (byte)IEC61850_90_5_Goose.FrameType.VersionNumberMask;
 
             // Cache behavioral connection parameters
             m_useETRConfiguration = useETRConfiguration;

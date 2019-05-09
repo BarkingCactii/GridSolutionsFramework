@@ -225,12 +225,12 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                 }
                 else
                 {
-                    m_useETRConfiguration = IEC61850_90_5.ConnectionParameters.DefaultUseETRConfiguration;
-                    m_guessConfiguration = IEC61850_90_5.ConnectionParameters.DefaultGuessConfiguration;
-                    m_parseRedundantASDUs = IEC61850_90_5.ConnectionParameters.DefaultParseRedundantASDUs;
-                    m_ignoreSignatureValidationFailures = IEC61850_90_5.ConnectionParameters.DefaultIgnoreSignatureValidationFailures;
-                    m_ignoreSampleSizeValidationFailures = IEC61850_90_5.ConnectionParameters.DefaultIgnoreSampleSizeValidationFailures;
-                    m_phasorAngleFormat = (AngleFormat)Enum.Parse(typeof(AngleFormat), IEC61850_90_5.ConnectionParameters.DefaultPhasorAngleFormat, true);
+                    m_useETRConfiguration = IEC61850_90_5_Goose.ConnectionParameters.DefaultUseETRConfiguration;
+                    m_guessConfiguration = IEC61850_90_5_Goose.ConnectionParameters.DefaultGuessConfiguration;
+                    m_parseRedundantASDUs = IEC61850_90_5_Goose.ConnectionParameters.DefaultParseRedundantASDUs;
+                    m_ignoreSignatureValidationFailures = IEC61850_90_5_Goose.ConnectionParameters.DefaultIgnoreSignatureValidationFailures;
+                    m_ignoreSampleSizeValidationFailures = IEC61850_90_5_Goose.ConnectionParameters.DefaultIgnoreSampleSizeValidationFailures;
+                    m_phasorAngleFormat = (AngleFormat)Enum.Parse(typeof(AngleFormat), IEC61850_90_5_Goose.ConnectionParameters.DefaultPhasorAngleFormat, true);
                 }
             }
         }
