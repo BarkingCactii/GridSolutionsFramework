@@ -18,11 +18,12 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>..\..\..\Build\Output\$(Configuration)\Libraries\</OutputPath>
+    <OutputPath>..\..\..\..\SIEGate-master\Build\Output\Debug\Applications\SIEGate\</OutputPath>
     <DefineConstants>TRACE;DEBUG</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <DocumentationFile>$(OutputPath)\$(AssemblyName).XML</DocumentationFile>
+    <DocumentationFile>
+    </DocumentationFile>
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <CodeAnalysisRuleSet>GSF.TimeSeries.ruleset</CodeAnalysisRuleSet>
     <Prefer32Bit>false</Prefer32Bit>

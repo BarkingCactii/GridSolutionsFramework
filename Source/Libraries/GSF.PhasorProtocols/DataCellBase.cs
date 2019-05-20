@@ -495,8 +495,8 @@ namespace GSF.PhasorProtocols
             StatusFlags = BigEndian.ToUInt16(buffer, startIndex);
             index += 2;
 
-            GSF.PhasorProtocols.IEC61850_90_5.Common.Dump("*** PARSEBODYIMAGE ***");
-            GSF.PhasorProtocols.IEC61850_90_5.Common.Dump(buffer);
+         //   GSF.PhasorProtocols.IEC61850_90_5.Common.Dump("*** PARSEBODYIMAGE ***");
+        //    GSF.PhasorProtocols.IEC61850_90_5.Common.Dump(buffer);
             // By the very nature of the major phasor protocols supporting the same order of phasors, frequency, df/dt, analog and digitals
             // we are able to "automatically" parse this data out in the data cell base class - BEAUTIFUL!!!
 

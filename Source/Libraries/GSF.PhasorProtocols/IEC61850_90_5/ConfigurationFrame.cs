@@ -397,6 +397,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             return m_calculatedSampleLength;
         }
 
+        /*
         public int GetCalculatedGooseLength()
         {
             if (m_calculatedGooseLength == 0)
@@ -431,6 +432,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             return m_calculatedGooseLength;
         }
 
+    */
         /// <summary>
         /// Parses the binary header image.
         /// </summary>

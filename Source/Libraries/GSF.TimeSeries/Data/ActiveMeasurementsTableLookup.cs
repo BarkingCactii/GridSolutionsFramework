@@ -48,8 +48,14 @@ namespace GSF.TimeSeries.Data
 
             DataTable table = dataSet.Tables["ActiveMeasurements"];
 
-            foreach (DataRow row in table.Rows)
+            int count = table.Rows.Count;
+            for (int i = 0; i < count; i++ )
+            //foreach (DataRow row in table.Rows)
             {
+                DataRow row = table.Rows[i];
+                if (i == count - 2)
+                    i = i;
+
                 uint? id = row.AsUInt32("DeviceID");
 
                 if (id.HasValue)

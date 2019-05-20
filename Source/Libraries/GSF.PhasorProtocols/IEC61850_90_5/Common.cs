@@ -692,7 +692,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
         /// <param name="index">Start index of buffer where tag length begins - will be auto-incremented.</param>
         public static int ValidateTag(this byte[] buffer, DataType tag, ref int index)
         {
-            Common.Dump(buffer, index, "ValidateTag Type", "Data type = " + tag.ToString(), "Index = " + index.ToString());
+        //    Common.Dump(buffer, index, "ValidateTag Type", "Data type = " + tag.ToString(), "Index = " + index.ToString());
 
             if ((DataType )buffer[index] != tag)
                 throw new InvalidOperationException("Encountered out-of-sequence or unknown data type tag: 0x" + buffer[index].ToString("X").PadLeft(2, '0'));
@@ -709,7 +709,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
         /// <param name="index">Start index of buffer where tag length begins - will be auto-incremented.</param>
         public static int ValidateTag(this byte[] buffer, GooseTag tag, ref int index)
         {
-            Common.Dump(buffer, index, "ValidateTag()", "GooseTag = " + tag.ToString(), "Index = " + index.ToString());
+          //  Common.Dump(buffer, index, "ValidateTag()", "GooseTag = " + tag.ToString(), "Index = " + index.ToString());
 
             if ((GooseTag)buffer[index] != tag)
             {
@@ -717,7 +717,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
                     buffer[index].ToString("X").PadLeft(2, '0'), tag.ToString("X").PadLeft(2, '0'),
                     index.ToString(), tag.ToString(), BitConverter.ToString(buffer).Replace("-", " "));
 
-                Common.Dump(buffer, index, "Out of sequence, shoule be something else, parsing tag " + tag.ToString());
+             //   Common.Dump(buffer, index, "Out of sequence, shoule be something else, parsing tag " + tag.ToString());
 
                 throw new InvalidOperationException(output);
             }
@@ -968,10 +968,11 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
         /// <param name="buffer">Buffer containing goose message.</param>
         /// <param name="index">Start index of buffer where data begins</param>=
         /// <returns>Byte array containing recorded data without tags or lengths</returns>
+        /*
         public static byte[] ExtractGooseData(this byte[] buffer, int idx, int length)
         {
             int startIndex = idx;
-            Common.Dump(buffer, startIndex, "ExtractGooseData()", "Index = " + startIndex.ToString() + " length = " + length.ToString());
+             Common.Dump(buffer, startIndex, "ExtractGooseData()", "Index = " + startIndex.ToString() + " length = " + length.ToString());
             // Create list to store data
             List<byte> gooseData = new List<byte>();
 
@@ -1013,7 +1014,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             // Return byte array for parsing
             return gooseData.ToArray();
         }
-
+        */
         /*
          *
         public static byte[] ExtractGooseData(this byte[] buffer, ref int index)

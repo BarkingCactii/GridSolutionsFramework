@@ -185,6 +185,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             // Ignore the time base from configuration frame if available.  The timebase is not adjustable for 61850.
             m_timebase = Common.Timebase;
 
+            /*
             try
             {
                 Common.Dump(buffer, startIndex, String.Format("Index out of range check SessionType {0}, Length {1}, StartIndex {2}, Index {3}", m_sessionType.ToString(), length, startIndex, -1));
@@ -194,12 +195,12 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             {
                 Common.Dump(ex.Message);
             }
-
+            */
             // See if frame is for a common IEEE C37.118 frame (e.g., for configuration or command)
 
             if (buffer[startIndex] == PhasorProtocols.Common.SyncByte)
             {
-                Common.Dump(String.Format("Condition 1: SessionType {0}, Length {1}, StartIndex {2}, Index {3}", m_sessionType.ToString(), length, startIndex, -1));
+              //  Common.Dump(String.Format("Condition 1: SessionType {0}, Length {1}, StartIndex {2}, Index {3}", m_sessionType.ToString(), length, startIndex, -1));
 
                 // Strip out frame type and version information...
                 m_frameType = (FrameType)(buffer[startIndex + 1] & ~VersionNumberMask);
@@ -241,7 +242,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             }
             else
             {
-                Common.Dump(buffer, startIndex, "***Bad Data Stream ***", "startIndex = " + startIndex.ToString());
+                //Common.Dump(buffer, startIndex, "***Bad Data Stream ***", "startIndex = " + startIndex.ToString());
                 throw new InvalidOperationException("Bad data stream, expected sync byte 0xAA or 0x01 as first byte in IEC 61850-90-5 frame, got 0x" + buffer[startIndex].ToString("X").PadLeft(2, '0') + " at index " + startIndex.ToString() + "\n" + BitConverter.ToString(buffer).Replace("-", " "));
             }
         }
@@ -266,7 +267,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
                 // Get session type (Goose, sampled values, etc.)
                 m_sessionType = (SessionType)buffer[index++];
 
-                Common.Dump(String.Format("SampledValues: SessionType {0}, Length {1}, StartIndex {2}, Index {3}", m_sessionType.ToString(), length, startIndex, index));
+              //  Common.Dump(String.Format("SampledValues: SessionType {0}, Length {1}, StartIndex {2}, Index {3}", m_sessionType.ToString(), length, startIndex, index));
 
                 // Make sure session type is sampled values 
                 if (m_sessionType == SessionType.SampledValues)

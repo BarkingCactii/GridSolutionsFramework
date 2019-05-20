@@ -17,7 +17,7 @@
     <DebugType>full</DebugType>
     <DefineDebug>true</DefineDebug>
     <DefineTrace>true</DefineTrace>
-    <OutputPath>..\..\..\Build\Output\Debug\Libraries\</OutputPath>
+    <OutputPath>..\..\..\..\SIEGate-master\Build\Output\Debug\Applications\SIEGate\</OutputPath>
     <DocumentationFile>
     </DocumentationFile>
     <RemoveIntegerChecks>true</RemoveIntegerChecks>
@@ -54,10 +54,6 @@
     <Reference Include="GSF.Communication, Version=2.3.119.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\..\SIEGate-master\Source\Dependencies\GSF\GSF.Communication.dll</HintPath>
-    </Reference>
-    <Reference Include="GSF.TimeSeries, Version=2.3.119.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\SIEGate-master\Source\Dependencies\GSF\GSF.TimeSeries.dll</HintPath>
     </Reference>
     <Reference Include="mscorlib" />
     <Reference Include="System" />
@@ -341,6 +337,10 @@
     <ProjectReference Include="..\GSF.Core\GSF.Core.csproj">
       <Project>{ff3fcba6-f01a-4ec2-bc3f-6ba832afcf88}</Project>
       <Name>GSF.Core</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\GSF.TimeSeries\GSF.TimeSeries.csproj">
+      <Project>{412f9f59-d9b9-4c8e-96d2-20492644198c}</Project>
+      <Name>GSF.TimeSeries</Name>
     </ProjectReference>
   </ItemGroup>
   <Target Name="AfterBuild">

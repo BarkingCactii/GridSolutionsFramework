@@ -1249,9 +1249,12 @@ namespace PhasorProtocolAdapters
 
             Dictionary<string, MeasurementKey> definedMeasurements = new Dictionary<string, MeasurementKey>();
 
+            var rows =  DataSourceLookups.GetLookupCache(DataSource).ActiveMeasurements.LookupByDeviceID(SharedMappingID);
             foreach (DataRow row in DataSourceLookups.GetLookupCache(DataSource).ActiveMeasurements.LookupByDeviceID(SharedMappingID))
             {
                 signalReference = row["SignalReference"].ToString();
+                if (signalReference.Contains("ALOG"))
+                    Console.WriteLine("breakpoint");
                 signalType = row["SignalType"].ToString();
 
                 // Although statistics may be associated with device, it will not be this adapter producing them...
@@ -1711,12 +1714,16 @@ namespace PhasorProtocolAdapters
             MapMeasurementAttributes(mappedMeasurements, m_qualityFlagsKey?.Metadata, frame.GetQualityFlagsMeasurement());
 
             // Loop through each parsed device in the data frame
-            foreach (IDataCell parsedDevice in frame.Cells)
+            for ( int i = 0; i < frame.Cells.Count; i++ )
+            //foreach (IDataCell parsedDevice in frame.Cells)
             {
+                IDataCell parsedDevice = frame.Cells[i];
+             //   "why not working?"
+                if (i > 0)
+                    Console.WriteLine("debug here");
                 try
                 {
-                    
-                    // Lookup device by its label (if needed), then by its ID code
+/*                    
                     if (parsedDevice.StationName != "Shelby" && parsedDevice.StationName != "NP_PMU_SIM")
                     {
                         Console.WriteLine("break here");
@@ -1732,7 +1739,8 @@ namespace PhasorProtocolAdapters
                     {
                         m_definedDevices.TryGetValue(parsedDevice.IDCode, out statisticsHelper);
                     }
-                    
+                    */
+                    // Lookup device by its label (if needed), then by its ID code
                     if (((object)m_labelDefinedDevices != null &&
                         m_labelDefinedDevices.TryGetValue(parsedDevice.StationName.ToNonNullString(), out statisticsHelper)) ||
                         //statisticsHelper != null)

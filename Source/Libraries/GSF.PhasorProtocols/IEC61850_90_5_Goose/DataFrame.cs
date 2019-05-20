@@ -800,6 +800,8 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
         {
             int tagLength;
 
+            //m_configurationFrame = null;
+
             Common.Dump("ParseGoose");
             //Common.Dump(buffer);
 
@@ -881,6 +883,10 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
 
             // Extract data without tags to new buffer
             byte[] dataBuffer = buffer.ExtractGooseData(index - dataLength, dataLength);
+
+            // skip final stNum tag, this is the final zero length unsigned type
+            buffer.SkipTag(GooseTag.StNum, ref index);
+
             int numDataBytes = 0;
 
             if ((object)m_configurationFrame == null)
@@ -915,8 +921,6 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                 base.ParseBodyImage(dataBuffer, 0, dataBuffer.Length);
             }
 
-            // skip final stNum tag
-            buffer.SkipTag(GooseTag.StNum, ref index);
 
 
         }
@@ -980,7 +984,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                                 {
                                     numDataBytes += 5;
                                     PhasorDefinition phasor = new PhasorDefinition(configCell, locNode.Value, 1, 0.0D, PhasorType.Voltage, null);
-                                    phasor.Label = "A VPHA Label";
+                                    //phasor.Label = "A VPHA Label";
                                     configCell.PhasorDefinitions.Add(phasor);// new PhasorDefinition(configCell, locNode.Value, 1, 0.0D, PhasorType.Voltage, null));
 
                                     break;
@@ -1028,8 +1032,8 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                             case "BOOL":
                                 {
                                     DigitalDefinition digital = new DigitalDefinition(configCell, locNode.Value, 0, 1);
-                                    digital.Label = "Bool";
-                                 //  configCell.DigitalDefinitions.Add(digital);
+                                 //   digital.Label = "Bool";
+                                   configCell.DigitalDefinitions.Add(digital);
 
                                   //  numDataBytes += 5;
                                   //  configCell.AnalogDefinitions.Add(new AnalogDefinition(configCell, locNode.Value, 1, 0.0D, AnalogType.SinglePointOnWave));

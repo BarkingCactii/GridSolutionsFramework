@@ -184,6 +184,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             // Ignore the time base from configuration frame if available.  The timebase is not adjustable for 61850.
             m_timebase = Common.Timebase;
 
+            /*
             try
             {
                 Common.Dump(buffer, startIndex, String.Format("Index out of range check SessionType {0}, Length {1}, StartIndex {2}, Index {3}", m_sessionType.ToString(), length, startIndex, -1));
@@ -193,6 +194,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             {
                 Common.Dump(ex.Message);
             }
+            */
 
             // See if frame is for a common IEEE C37.118 frame (e.g., for configuration or command)
 
@@ -265,7 +267,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                 // Get session type (Goose, sampled values, etc.)
                 m_sessionType = (SessionType)buffer[index++];
 
-                Common.Dump(String.Format("SampledValues: SessionType {0}, Length {1}, StartIndex {2}, Index {3}", m_sessionType.ToString(), length, startIndex, index));
+            //    Common.Dump(String.Format("SampledValues: SessionType {0}, Length {1}, StartIndex {2}, Index {3}", m_sessionType.ToString(), length, startIndex, index));
 
                 // Make sure session type is sampled values 
                 if (m_sessionType == SessionType.SampledValues)

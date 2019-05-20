@@ -279,7 +279,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             {
                 // Parse common frame header
 
-                Common.Dump(buffer, offset, "ICommonHeader", "Offset = " + offset.ToString(), ",Length = " + length.ToString());
+           //     Common.Dump(buffer, offset, "ICommonHeader", "Offset = " + offset.ToString(), ",Length = " + length.ToString());
 
                 // advance cursor
                 while (offset < buffer.Length)

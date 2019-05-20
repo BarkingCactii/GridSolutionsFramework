@@ -18,7 +18,7 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>..\..\..\Build\Output\Debug\Libraries\</OutputPath>
+    <OutputPath>..\..\..\..\SIEGate-master\Build\Output\Debug\Applications\SIEGate\</OutputPath>
     <DefineConstants>TRACE;DEBUG;DNF45;DNF46</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>

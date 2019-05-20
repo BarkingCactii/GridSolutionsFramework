@@ -1492,6 +1492,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             }
         }
 
+        /*
         public void PublishNewGooseConfigurationFrame(ConfigurationFrame configFrame)
         {
             // Cache new configuration
@@ -1539,7 +1540,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             if (CommonHeader.PublishFrame != null)
                 CommonHeader.PublishFrame(configFrame);
         }
-
+        */
         // Exposes a newly created configuration frame
         public void PublishNewConfigurationFrame(ConfigurationFrame configFrame)
         {
@@ -1585,6 +1586,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
                 CommonHeader.PublishFrame(configFrame);
         }
 
+    
         /// <summary>
         /// Determines if checksum in the <paramref name="buffer"/> is valid.
         /// </summary>

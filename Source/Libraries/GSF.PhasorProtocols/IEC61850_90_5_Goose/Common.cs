@@ -983,10 +983,13 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             {
                 foreach (DataType type in dataType)
                 {
-                    // If the tag is a structure, skip it
+                    // If the tag is a structure, skip it.
+                    // note this is not a good method of dealing with this,
+                    // since the config file will be specified that this data is beind sent
                     if ((DataType)buffer[i] == DataType.structure)
                     {
-                        buffer.ValidateTag(DataType.structure, ref i);
+                        int tagLength = buffer.ValidateTag(DataType.structure, ref i);
+                        i += tagLength - 1;
                         break;
                     }
                     // Check if data type matches
@@ -994,6 +997,9 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                     {
                         // Acquire data length
                         int tagLength = buffer.ValidateTag(type, ref i);
+
+                        if (type == DataType.boolean)
+                            tagLength = 1;
 
                         // Add data to list
                         for (int j = i; j < tagLength + i; j++)
