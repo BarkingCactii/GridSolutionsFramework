@@ -495,8 +495,6 @@ namespace GSF.PhasorProtocols
             StatusFlags = BigEndian.ToUInt16(buffer, startIndex);
             index += 2;
 
-         //   GSF.PhasorProtocols.IEC61850_90_5.Common.Dump("*** PARSEBODYIMAGE ***");
-        //    GSF.PhasorProtocols.IEC61850_90_5.Common.Dump(buffer);
             // By the very nature of the major phasor protocols supporting the same order of phasors, frequency, df/dt, analog and digitals
             // we are able to "automatically" parse this data out in the data cell base class - BEAUTIFUL!!!
 
@@ -510,9 +508,10 @@ namespace GSF.PhasorProtocols
 
             // Parse out frequency and dF/dt values
             m_frequencyValue = parsingState.CreateNewFrequencyValue(this, m_configurationCell.FrequencyDefinition, buffer, index, out parsedLength);
+#if NojaDebug
             Random random = new Random();
             m_frequencyValue.Frequency = random.NextDouble() * (55.0f - 45.0f) + 45.0f;
-            //m_frequencyValue.Frequency = 100.99;
+#endif
             index += parsedLength;
 
             // Parse out analog values

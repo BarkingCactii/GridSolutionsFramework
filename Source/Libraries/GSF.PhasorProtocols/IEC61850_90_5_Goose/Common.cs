@@ -1020,58 +1020,6 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             return gooseData.ToArray();
         }
 
-        /*
-         *
-        public static byte[] ExtractGooseData(this byte[] buffer, ref int index)
-        {
-            Common.Dump(buffer, index, "ExtractGooseData()", "Index = " + index.ToString());
-            // Create list to store data
-            List<byte> gooseData = new List<byte>();
-
-            // Form array of data types for comparison
-            DataType[] dataType = Enum.GetValues(typeof(DataType)).Cast<DataType>().ToArray();
-
-            // Loop through to buffers end
-            while (index < buffer.Length)
-            {
-                foreach (DataType type in dataType)
-                {
-                    // If the tag is a structure, skip it
-                    if ((DataType)buffer[index] == DataType.structure)
-                    {
-                        buffer.ValidateTag(DataType.structure, ref index);
-                        break;
-                    }
-                    // Check if data type matches
-                    else if ((DataType)buffer[index] == type)
-                    {
-                        // Acquire data length
-                        int tagLength = buffer.ValidateTag(type, ref index);// - 1;
-                        // Increment index because I said so (also for some reason there are two length tags TODO: Investigate)
-                        //index++;
-                        // Add data to list
-                        for (int i = 0; i < tagLength; i++, index++)
-                        {
-                            gooseData.Add(buffer[index]);
-                        }
-                        
-                        //while (tagLength-- > 0)
-                       // {
-                      //      gooseData.Add(buffer[index++]);
-                      //  }
-                        
-                        break;
-                    }
-                    else if (type == dataType.Last())
-                    {
-                        throw new InvalidOperationException("Encountered unknown data tag: 0x" + buffer[index].ToString("X").PadLeft(2, '0'));
-                    }
-                }
-            }
-            // Return byte array for parsing
-            return gooseData.ToArray();
-        }
-    */
         /// <summary>
         /// Gets decoded sample value tag length (currently limited to 16-bits).
         /// </summary>
@@ -1128,6 +1076,8 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                 buffer[index++] = (byte)(length & 0xFF);
             }
         }
+
+#if NojaDebug
 
         static int delay = 10;
 
@@ -1251,5 +1201,6 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                 }
             }
         }
+#endif
     }
 }

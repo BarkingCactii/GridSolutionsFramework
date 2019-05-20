@@ -278,9 +278,6 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             if (length >= CommonFrameHeader.FixedLength)
             {
                 // Parse common frame header
-
-           //     Common.Dump(buffer, offset, "ICommonHeader", "Offset = " + offset.ToString(), ",Length = " + length.ToString());
-
                 // advance cursor
                 while (offset < buffer.Length)
                 {

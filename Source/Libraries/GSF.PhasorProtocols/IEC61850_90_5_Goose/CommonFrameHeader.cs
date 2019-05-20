@@ -184,20 +184,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             // Ignore the time base from configuration frame if available.  The timebase is not adjustable for 61850.
             m_timebase = Common.Timebase;
 
-            /*
-            try
-            {
-                Common.Dump(buffer, startIndex, String.Format("Index out of range check SessionType {0}, Length {1}, StartIndex {2}, Index {3}", m_sessionType.ToString(), length, startIndex, -1));
-                byte b = buffer[startIndex];
-            }
-            catch (Exception ex)
-            {
-                Common.Dump(ex.Message);
-            }
-            */
-
             // See if frame is for a common IEEE C37.118 frame (e.g., for configuration or command)
-
             if (buffer[startIndex] == PhasorProtocols.Common.SyncByte)
             {
                 Common.Dump(String.Format("Condition 1: SessionType {0}, Length {1}, StartIndex {2}, Index {3}", m_sessionType.ToString(), length, startIndex, -1));
@@ -232,10 +219,6 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
 
                 m_timeQualityFlags = fractionOfSecond & Common.TimeQualityFlagsMask;
             }
-            else if (buffer[startIndex + 1] == Common.CltpTag && buffer[startIndex + 2] == (byte)SessionType.SampledValues) // sampled value
-            {
-                InitSampledValues(configurationFrame, useETRConfiguration, guessConfiguration, parseRedundantASDUs, ignoreSignatureValidationFailures, ignoreSampleSizeValidationFailures, angleFormat, buffer, startIndex, length);
-            }
             else if (buffer[startIndex + 1] == Common.CltpTag && buffer[startIndex + 2] == (byte)SessionType.Goose) // goose packets 
             {
                 InitGoose(configurationFrame, useETRConfiguration, guessConfiguration, parseRedundantASDUs, ignoreSignatureValidationFailures, ignoreSampleSizeValidationFailures, angleFormat, buffer, startIndex, length);
@@ -244,40 +227,6 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             {
                 Common.Dump(buffer, startIndex, "***Bad Data Stream ***", "startIndex = " + startIndex.ToString());
                 throw new InvalidOperationException("Bad data stream, expected sync byte 0xAA or 0x01 as first byte in IEC 61850-90-5 frame, got 0x" + buffer[startIndex].ToString("X").PadLeft(2, '0') + " at index " + startIndex.ToString() + "\n" + BitConverter.ToString(buffer).Replace("-", " "));
-            }
-        }
-
-        private void InitSampledValues(ConfigurationFrame configurationFrame, bool useETRConfiguration, bool guessConfiguration, bool parseRedundantASDUs, bool ignoreSignatureValidationFailures, bool ignoreSampleSizeValidationFailures, AngleFormat angleFormat, byte[] buffer, int startIndex, int length)
-        {
-            // Make sure there is enough data to parse session header from frame
-            if (length > Common.SessionHeaderSize)
-            {
-                // Manually assign frame type - this is an IEC 61850-90-5 data frame
-                m_frameType = IEC61850_90_5_Goose.FrameType.DataFrame;
-
-                // Calculate CLTP tag length
-                int cltpTagLength = buffer[startIndex] + 1;
-
-                // Initialize buffer parsing index starting past connectionless transport protocol header
-                int index = startIndex + cltpTagLength;
-
-                // Start calculating total frame length
-                int frameLength = cltpTagLength;
-
-                // Get session type (Goose, sampled values, etc.)
-                m_sessionType = (SessionType)buffer[index++];
-
-            //    Common.Dump(String.Format("SampledValues: SessionType {0}, Length {1}, StartIndex {2}, Index {3}", m_sessionType.ToString(), length, startIndex, index));
-
-                // Make sure session type is sampled values 
-                if (m_sessionType == SessionType.SampledValues)
-                {
-                    ProcessHeader(index, buffer, frameLength, startIndex, length, cltpTagLength);
-                }
-                else
-                {
-                    throw new InvalidOperationException(string.Format("This library can only parse IEC 61850-90-5 sampled value sessions, type \"{0}\" is not supported.", m_sessionType));
-                }
             }
         }
 
@@ -307,193 +256,12 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                 if (m_sessionType == SessionType.Goose)
                 {
                     ProcessHeader(index, buffer, frameLength, startIndex, length, cltpTagLength);
-/*
-                    byte headerSize = buffer[index];
-
-                    // Make sure header size is standard
-                    if (headerSize == Common.SessionHeaderSize)
-                    {
-                        try
-                        {
-                            // Skip common header tag
-                            index += 3;
-
-                            // Get SPDU length
-                            m_spduLength = BigEndian.ToUInt32(buffer, index);
-                            index += 4;
-
-                            // Add SPDU length to total frame length (updated as of 10/3/2012 to accommodate extra 6 bytes)
-                            frameLength += (int)m_spduLength + 8;
-
-                            // Make sure full frame of data is available - cannot calculate full frame length needed for check sum
-                            // without the entire frame since signature algorithm calculation length varies by type and size
-                            if (length > m_spduLength + 13 || m_sessionType == SessionType.Goose)
-                            {
-                                // Get SPDU packet number
-                                m_packetNumber = BigEndian.ToUInt32(buffer, index);
-
-                                // Get security algorithm type
-                                m_securityAlgorithm = (SecurityAlgorithm)buffer[index + 12];
-
-                                // Get signature algorithm type
-                                m_signatureAlgorithm = (SignatureAlgorithm)buffer[index + 13];
-
-                                // Get current key ID
-                                m_keyID = BigEndian.ToUInt32(buffer, index + 14);
-
-                                // Add signature calculation result length to total frame length
-                                switch (m_signatureAlgorithm)
-                                {
-                                    case SignatureAlgorithm.None:
-                                        break;
-                                    case SignatureAlgorithm.Sha80:
-                                        frameLength += 11;
-                                        break;
-                                    case SignatureAlgorithm.Sha128:
-                                    case SignatureAlgorithm.Aes128:
-                                        frameLength += 17;
-                                        break;
-                                    case SignatureAlgorithm.Sha256:
-                                        frameLength += 33;
-                                        break;
-                                    case SignatureAlgorithm.Aes64:
-                                        frameLength += 9;
-                                        break;
-                                    default:
-                                        throw new InvalidOperationException("Invalid IEC 61850-90-5 signature algorithm detected: 0x" + buffer[index].ToString("X").PadLeft(2, '0'));
-                                }
-
-                                // Check signature algorithm packet checksum here, this step is skipped in data frame parsing due to non-standard location...
-                                if (m_signatureAlgorithm != SignatureAlgorithm.None)
-                                {
-                                    int packetIndex = startIndex + cltpTagLength;
-                                    int hmacIndex = (int)(packetIndex + m_spduLength + 2);
-
-                                    // Check for signature tag
-                                    if (buffer[hmacIndex++] == 0x85)
-                                    {
-                                        // KeyID is technically a lookup into derived rotating keys, but all these are using dummy key for now
-                                        HMAC hmac = m_signatureAlgorithm <= SignatureAlgorithm.Sha256 ? (HMAC)(new ShaHmac(Common.DummyKey)) : (HMAC)(new AesHmac(Common.DummyKey));
-                                        int result = 0;
-
-                                        switch (m_signatureAlgorithm)
-                                        {
-                                            case SignatureAlgorithm.None:
-                                                break;
-                                            case SignatureAlgorithm.Aes64:
-                                                m_sourceHash = buffer.BlockCopy(hmacIndex, 8);
-                                                m_calculatedHash = hmac.ComputeHash(buffer, packetIndex, (int)m_spduLength).BlockCopy(0, 8);
-                                                result = m_sourceHash.CompareTo(0, m_calculatedHash, 0, 8);
-                                                break;
-                                            case SignatureAlgorithm.Sha80:
-                                                m_sourceHash = buffer.BlockCopy(hmacIndex, 10);
-                                                m_calculatedHash = hmac.ComputeHash(buffer, packetIndex, (int)m_spduLength).BlockCopy(0, 10);
-                                                result = m_sourceHash.CompareTo(0, m_calculatedHash, 0, 10);
-                                                break;
-                                            case SignatureAlgorithm.Sha128:
-                                            case SignatureAlgorithm.Aes128:
-                                                m_sourceHash = buffer.BlockCopy(hmacIndex, 16);
-                                                m_calculatedHash = hmac.ComputeHash(buffer, packetIndex, (int)m_spduLength).BlockCopy(0, 16);
-                                                result = m_sourceHash.CompareTo(0, m_calculatedHash, 0, 16);
-                                                break;
-                                            case SignatureAlgorithm.Sha256:
-                                                m_sourceHash = buffer.BlockCopy(hmacIndex, 32);
-                                                m_calculatedHash = hmac.ComputeHash(buffer, packetIndex, (int)m_spduLength).BlockCopy(0, 32);
-                                                result = m_sourceHash.CompareTo(0, m_calculatedHash, 0, 32);
-                                                break;
-                                            default:
-                                                throw new NotSupportedException(string.Format("IEC 61850-90-5 signature algorithm \"{0}\" is not currently supported: ", m_signatureAlgorithm));
-                                        }
-
-                                        if (result != 0 && !m_ignoreSignatureValidationFailures)
-                                            throw new CrcException("Invalid binary image detected - IEC 61850-90-5 check sum does not match.");
-                                    }
-                                    else
-                                    {
-                                        throw new CrcException("Invalid binary image detected - expected IEC 61850-90-5 check sum does not exist.");
-                                    }
-                                }
-
-                                // Get payload length
-                                index += 18;
-                                m_dataLength = (ushort)BigEndian.ToUInt32(buffer, index);
-                                index += 4;
-
-                                // Confirm payload type tag is sampled values (0x82) or goose (0x81)
-                                if ((buffer[index] != 0x82 && m_sessionType == SessionType.SampledValues) || (buffer[index] != 0x81 && m_sessionType == SessionType.Goose))
-                                    throw new InvalidOperationException("Encountered a payload that is not tagged 0x82 for sampled values: 0x" + buffer[index].ToString("X").PadLeft(2, '0'));
-
-                                index++;
-
-                                // Get simulated bit value
-                                m_simulatedData = buffer[index++] != 0;
-
-                                // Get application ID
-                                m_applicationID = BigEndian.ToUInt16(buffer, index);
-                                index += 2;
-
-                                // Get ASDU payload size
-                                m_payloadSize = BigEndian.ToUInt16(buffer, index);
-                                index += 2;
-
-                                // Do some specific things related to SV
-                                if (m_sessionType == SessionType.SampledValues)
-                                {
-                                    // Validate sampled value PDU tag exists and skip past it
-                                    buffer.ValidateTag(SampledValueTag.SvPdu, ref index);
-
-                                    // Parse number of ASDUs tag
-                                    m_asduCount = buffer.ParseByteTag(SampledValueTag.AsduCount, ref index);
-
-                                    if (m_asduCount == 0)
-                                        throw new InvalidOperationException("Total number of ADSUs must be greater than zero.");
-
-                                    // Validate sequence of ASDU tag exists and skip past it
-                                    buffer.ValidateTag(SampledValueTag.SequenceOfAsdu, ref index);
-                                }
-                                // If the session type is not SV, check it is GOOSE (again)
-                                else if (m_sessionType == SessionType.Goose)
-                                {
-                                    frameLength += 2; // account for 0x85 0x00
-
-                                    // skip past 0x61, 0x81 and len fields
-                                    index += 3; // JH should be 2 or 3?
-
-                                    // parsing starts at 0x80 gocbRef
-                                    Common.Dump(buffer, index, "Header");
-                                    // Validate goose value PDU tag exists and skip past it
-                                    //                                        buffer.ValidateTag(GooseTag.GPdu, ref index);
-
-                                    // stlip the last 0x85 0x00 sequence
-                                    //                                      buffer.SkipTag(GooseTag.StNum, ref index);
-                                }
-
-                                // Set header length
-                                m_headerLength = (ushort)(index - startIndex);
-
-                                // Set calculated frame length
-                                m_frameLength = (ushort)frameLength;
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Common.Dump(ex.Message);
-                        }
-                    }
-                    else
-                    {
-                        throw new InvalidOperationException("Bad data stream, encountered an invalid session header size: " + headerSize);
-                    }
-                    */
                 }
-                
                 else
                 {
                     throw new InvalidOperationException(string.Format("This library can only parse IEC 61850-90-5 sampled value sessions, type \"{0}\" is not supported.", m_sessionType));
                 }
-                
             }
-            
         }
 
         private int ProcessHeader(int index, byte[] buffer, int frameLength, int startIndex, int length, int cltpTagLength)
@@ -517,7 +285,6 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
 
                     // Make sure full frame of data is available - cannot calculate full frame length needed for check sum
                     // without the entire frame since signature algorithm calculation length varies by type and size
-                    //if (length > m_spduLength + 13)
                     if (length > m_spduLength + 13 || m_sessionType == SessionType.Goose)
 
                     {
@@ -646,18 +413,16 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                         // If the session type is not SV, check it is GOOSE (again)
                         else if (m_sessionType == SessionType.Goose)
                         {
-                            frameLength += 2; // account for 0x85 0x00
+                            frameLength += 2; // account for end of packet 0x85 0x00
 
                             // skip past 0x61, 0x81 and len fields
-                            index += 3; // JH should be 2 or 3?
+                            index += 3;
 
                             // parsing starts at 0x80 gocbRef
                             Common.Dump(buffer, index, "Header");
-                            // Validate goose value PDU tag exists and skip past it
-                            //                                        buffer.ValidateTag(GooseTag.GPdu, ref index);
 
-                            // stlip the last 0x85 0x00 sequence
-                            //                                      buffer.SkipTag(GooseTag.StNum, ref index);
+                            // skip the last 0x85 0x00 sequence
+                            // buffer.SkipTag(GooseTag.StNum, ref index);
                         }
                         // Set header length
                         m_headerLength = (ushort)(index - startIndex);

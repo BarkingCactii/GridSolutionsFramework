@@ -387,6 +387,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
         /// Gets calculated length of data samples based on known configuration.
         /// </summary>
         /// <returns>Calculated length of data samples.</returns>
+        /*
         public int GetCalculatedSampleLength()
         {
             if (m_calculatedSampleLength == 0)
@@ -396,7 +397,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
 
             return m_calculatedSampleLength;
         }
-
+        */
         public int GetCalculatedGooseLength()
         {
             if (m_calculatedGooseLength == 0)

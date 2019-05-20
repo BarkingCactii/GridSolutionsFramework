@@ -22,7 +22,7 @@
     </DocumentationFile>
     <RemoveIntegerChecks>true</RemoveIntegerChecks>
     <RunCodeAnalysis>false</RunCodeAnalysis>
-    <DefineConstants>TRACE;DEBUG</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;NojaDebug</DefineConstants>
     <CodeAnalysisRuleSet>GSF.PhasorProtocols.ruleset</CodeAnalysisRuleSet>
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>

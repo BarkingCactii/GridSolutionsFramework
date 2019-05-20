@@ -123,53 +123,6 @@ namespace GSF.PhasorProtocols
         {
             get
             {
-#if jeff
-                Type type = typeof(ChannelBase);
-
-                foreach (var property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
-                {
-                    var getMethod = property.GetGetMethod(false);
-                    MethodInfo pathod = getMethod.GetBaseDefinition();
-                    //if (getMethod.GetBaseDefinition() == getMethod)
-                  //  {
-                  //      Console.WriteLine(getMethod);
-                  //  }
-                }
-
-                Type classType = typeof(ChannelBase);
-                PropertyInfo method1= classType.GetProperty("HeaderImage");
-                PropertyInfo method2 = classType.GetProperty("BodyImage");
-                PropertyInfo method3 = classType.GetProperty("FooterImage");
-                // if (method.DeclaringType == typeof(GetProperty))
-                //    Console.WriteLine("DoSomethingExtra not overridden.");
-                //else
-                // Console.WriteLine("DoSomethingExtra is overridden by " + method.DeclaringType.Name);
-
-                int breakHere = 0;
-                if (HeaderImage != null)
-                    breakHere = 1;
-                if (BodyImage != null)
-                    breakHere = 1;
-                if (FooterImage != null)
-                    breakHere = 1;
-
-                if ( HeaderImage == null || BodyImage == null || FooterImage == null )
-                {
-                    //OnStatusMessage(MessageLevel.Info, deviceStatus.ToString());
-
-                    throw new NullReferenceException(String.Format($"BinaryImage(): Byte Array not defined HeaderImage {0}, BodyImage {1}, FooterImage {2}", 
-                        HeaderImage == null ? "null":HeaderImage.Length.ToString(), 
-                        BodyImage == null ? "null" : BodyImage.Length.ToString(), 
-                        FooterImage == null ? "null" : FooterImage.Length.ToString()));
-
-                    //return new byte[0];
-                }
-                else
-                {
-                 //   throw new Exception("Binary Image defined");
-                   // GSF.PhasorProtocols.IEC61850_90_5.Common.Dump("BinaryImage() defined");
-                }
-#endif
                 // TODO: This proxy property can be removed if all channel base implementations are recoded to implement "GenerateHeaderImage/GenerateBodyImage/GenerateFooterImage" overrides...
                 byte[] buffer = new byte[BinaryLength];
                 int index = 0;

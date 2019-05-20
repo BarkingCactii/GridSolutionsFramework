@@ -397,42 +397,6 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             return m_calculatedSampleLength;
         }
 
-        /*
-        public int GetCalculatedGooseLength()
-        {
-            if (m_calculatedGooseLength == 0)
-            {
-                foreach (ConfigurationCell cell in Cells)
-                {
-                    try
-                    {
-                        String result = String.Format("cell.IDCode {0}, cell.IDLabel {1}, cell.PhasorDefinitions.Count {2}, cell.AnalogDefinitions.Count {3}, cell.DigitalDefinitions.Count {4}\n", cell.IDCode, cell.IDLabel, cell.PhasorDefinitions.Count, cell.AnalogDefinitions.Count, cell.DigitalDefinitions.Count);
-                        Common.Dump(result);
-                    }
-                    catch (Exception ex)
-                    {
-                        throw new InvalidOperationException(String.Format("{0}:{1}:{2}\n", ex.Message, ex.StackTrace, ex.Source));
-                    }
-                }
-                //File.AppendAllText("jeff.txt", String.Format("cell.PhasorDefinitions.Count {0} * 8, cell.AnalogDefinitions.Count {1} * 4, cell.DigitalDefinitions.Count {2} * 2"),
-                //cell.PhasorDefinitions.Count,cell.AnalogDefinitions.Count, Cell.cell.DigitalDefinitions.Count);                
-                // 1 byte for STAT
-                // 5 bytes for FREQ
-                // 5 bytes if FrequencyDefinition exists
-
-                m_calculatedGooseLength = Cells.Sum(cell => 1 + 5 + (cell.FrequencyDefinition == null ? 0 : 5)
-                    + ( cell.PhasorDefinitions.Count * 8 ) 
-                    + ( cell.AnalogDefinitions.Count * 4 ) 
-                    + ( cell.DigitalDefinitions.Count * 2));
-            }
-
-            Common.Dump(String.Format("GetCalculatedGooseLength() -> {0}, Freq {1}, Phasor {2}, Analog {3}, Digital {4}", 
-                m_calculatedGooseLength, Cells.Sum(cell => cell.FrequencyDefinition == null ? 0 : 1), Cells.Sum( cell => cell.PhasorDefinitions.Count), Cells.Sum(cell => cell.AnalogDefinitions.Count), Cells.Sum(cell => cell.DigitalDefinitions.Count)));
-
-            return m_calculatedGooseLength;
-        }
-
-    */
         /// <summary>
         /// Parses the binary header image.
         /// </summary>

@@ -483,7 +483,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             int index = 0;
 
             // Get a buffer with extra room for variable length tags to hold new image 
-            asduImage = new byte[100 + configurationFrame.GetCalculatedSampleLength() + m_msvID.Length];
+            asduImage = new byte[100 + configurationFrame.GetCalculatedGooseLength() + m_msvID.Length];
 
             //
             // Generate current ASDU image
@@ -514,7 +514,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             //m_sampleRate.EncodeTagValue(SampledValueTag.SmpRate, bodyImage, ref index);
 
             // Encode sample length
-            ushort sampleLength = (ushort)configurationFrame.GetCalculatedSampleLength();
+            ushort sampleLength = (ushort)configurationFrame.GetCalculatedGooseLength();
             sampleLength.EncodeTagLength(SampledValueTag.Samples, asduImage, ref index);
 
             // Copy in base image
@@ -585,16 +585,6 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
         public override int ParseBinaryImage(byte[] buffer, int startIndex, int length)
         {
             // Overrides base class behavior, ASDUs can generally be parsed even without configuration.
-            /*
-            while (startIndex < buffer.Length)
-            {
-                if (buffer[startIndex] == 0x01 && buffer[startIndex + 1] == Common.CltpTag)
-                    break;
-
-                startIndex++;
-                length--;
-            }
-            */
             buffer.ValidateParameters(startIndex, length);
             CommonFrameHeader header = CommonHeader;
             IDataFrameParsingState state = State;
@@ -607,22 +597,11 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                 if (configurationFrame.Cells[0].AnalogDefinitions.Count != 14)
                     ConfigurationFrame = configurationFrame as ConfigurationFrame;
             }
-            //int tagLength, index = startIndex;
-
-            // Header has already been parsed, skip past it
-            //index += header.Length;
 
             // Get reference to configuration frame, if available
             m_configurationFrame = ConfigurationFrame;
 
             // Check session type
-            /*
-            if (header.SessionID == SessionType.SampledValues)
-            {
-                ParseSampledValues(buffer, header, startIndex, length);
-            }
-            else
-            */
             if (header.SessionID == SessionType.Goose)
             {
                 ParseGoose(buffer, header, startIndex, length);
@@ -631,194 +610,19 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             return header.FrameLength;
         }
 
-        /*
-        private void ParseSampledValues(byte[] buffer, CommonFrameHeader header, int startIndex, int length)
-        {
-            int tagLength;
-            int index = startIndex + header.Length;
-
-            // Parse each ASDU in incoming frame (e.g, DataCell(t-2), DataCell(t-1), DataCell(t))
-            for (int i = 0; i < header.AsduCount; i++)
-            {
-                // Handle redundant ASDU - last one parsed will be newest and exposed normally
-                if (i > 0)
-                {
-                    if (header.ParseRedundantASDUs)
-                    {
-                        // Create a new data frame to hold redundant ASDU data
-                        DataFrame dataFrame = new DataFrame
-                        {
-                            ConfigurationFrame = m_configurationFrame,
-                            CommonHeader = header
-                        };
-
-                        // Add a copy of the current data cell to the new frame 
-                        foreach (IDataCell cell in Cells)
-                        {
-                            dataFrame.Cells.Add(cell);
-                        }
-
-                        // Publish new data frame with redundant ASDU data
-                        header.PublishFrame(dataFrame);
-                    }
-
-                    // Clear any existing ASDU values from this data frame
-                    Cells.Clear();
-                }
-
-                // Validate ASDU sequence tag exists and skip past it
-                buffer.ValidateTag(SampledValueTag.AsduSequence, ref index);
-
-                // Parse MSVID value
-                m_msvID = buffer.ParseStringTag(SampledValueTag.MsvID, ref index);
-
-                // If formatted according to implementation agreement, MSVID value will contain an ID code and station name
-                if (!string.IsNullOrWhiteSpace(m_msvID))
-                {
-                    int underscoreIndex = m_msvID.IndexOf("_");
-
-                    if (underscoreIndex > 0)
-                    {
-                        if (!ushort.TryParse(m_msvID.Substring(0, underscoreIndex), out m_idCode))
-                        {
-                            m_idCode = 1;
-                            m_stationName = m_msvID;
-                        }
-                        else
-                        {
-                            m_stationName = m_msvID.Substring(underscoreIndex + 1);
-                        }
-                    }
-                    else
-                    {
-                        m_idCode = 1;
-                        m_stationName = m_msvID;
-                    }
-                }
-                else
-                {
-                    m_idCode = 1;
-                    m_stationName = "IEC61850Dataset";
-                }
-
-                //// Dataset name has been removed as per implementation agreement
-                //// Parse dataset name
-                //m_dataSet = buffer.ParseStringTag(SampledValueTag.Dataset, ref index);
-
-                // Parse sample count
-                m_sampleCount = buffer.ParseUInt16Tag(SampledValueTag.SmpCnt, ref index);
-
-                // Parse configuration revision
-                m_configurationRevision = buffer.ParseUInt32Tag(SampledValueTag.ConfRev, ref index);
-
-                // Parse refresh time
-                if ((SampledValueTag)buffer[index] != SampledValueTag.RefrTm)
-                    throw new InvalidOperationException("Encountered out-of-sequence or unknown sampled value tag: 0x" + buffer[startIndex].ToString("X").PadLeft(2, '0'));
-
-                index++;
-                tagLength = buffer.ParseTagLength(ref index);
-
-                if (tagLength < 8)
-                    throw new InvalidOperationException(string.Format("Unexpected length for \"{0}\" tag: {1}", SampledValueTag.RefrTm, tagLength));
-
-                uint secondOfCentury = BigEndian.ToUInt32(buffer, index);
-                UInt24 fractionOfSecond = BigEndian.ToUInt24(buffer, index + 4);
-                index += 7;
-
-                // Get whole seconds of timestamp
-                long timestamp = (new UnixTimeTag((decimal)secondOfCentury)).ToDateTime().Ticks;
-
-                // Add fraction seconds of timestamp
-                decimal fractionalSeconds = fractionOfSecond / (decimal)header.Timebase;
-                timestamp += (long)(fractionalSeconds * (decimal)Ticks.PerSecond);
-
-                // Apply parsed timestamp to common header
-                header.Timestamp = timestamp;
-                header.TimeQualityFlags = (TimeQualityFlags)buffer[index++];
-
-                // Parse sample synchronization state
-                SampleSynchronization = buffer.ParseByteTag(SampledValueTag.SmpSynch, ref index);
-
-                // Parse optional sample rate
-                if ((SampledValueTag)buffer[index] == SampledValueTag.SmpRate)
-                    m_sampleRate = buffer.ParseUInt16Tag(SampledValueTag.SmpRate, ref index);
-
-                // Validate that next tag is for sample values
-                if ((SampledValueTag)buffer[index] != SampledValueTag.Samples)
-                    throw new InvalidOperationException("Encountered out-of-sequence or unknown sampled value tag: 0x" + buffer[startIndex].ToString("X").PadLeft(2, '0'));
-
-                index++;
-                tagLength = buffer.ParseTagLength(ref index);
-
-                // Attempt to derive a configuration if none is defined
-                if ((object)m_configurationFrame == null)
-                {
-                    // If requested, attempt to load configuration from an associated ETR file
-                    if (header.UseETRConfiguration)
-                        ParseETRConfiguration();
-
-                    // If we still have no configuration, see if a "guess" is requested
-                    if ((object)m_configurationFrame == null && header.GuessConfiguration)
-                        GuessAtConfiguration(tagLength);
-                }
-
-                if ((object)m_configurationFrame == null)
-                {
-                    // If the configuration is still unavailable, skip past sample values - don't know the details otherwise
-                    index += tagLength;
-                }
-                else
-                {
-                    // See if sample size validation should by bypassed
-                    if (header.IgnoreSampleSizeValidationFailures)
-                    {
-                        base.ParseBodyImage(buffer, index, length - (index - startIndex));
-                        index += tagLength;
-                    }
-                    else
-                    {
-                        // Validate that sample size matches current configuration
-                        if (tagLength != m_configurationFrame.GetCalculatedSampleLength())
-                            throw new InvalidOperationException("Configuration does match data sample size - cannot parse data");
-
-                        // Parse standard synchrophasor sequence
-                        index += (ushort)base.ParseBodyImage(buffer, index, length - (index - startIndex));
-                    }
-                }
-
-                // Skip past optional sample mod tag, if defined
-                if ((SampledValueTag)buffer[startIndex] == SampledValueTag.SmpMod)
-                    buffer.ValidateTag(SampledValueTag.SmpMod, ref index);
-
-                // Skip past optional UTC timestamp tag, if defined
-                if ((SampledValueTag)buffer[startIndex] == SampledValueTag.UtcTimestamp)
-                    buffer.ValidateTag(SampledValueTag.UtcTimestamp, ref index);
-            }
-        }
-        */
         private void ParseGoose(byte[] buffer, CommonFrameHeader header, int startIndex, int length)
         {
             int tagLength;
 
-            //m_configurationFrame = null;
-
+#if NojaDebug
             Common.Dump("ParseGoose");
-            //Common.Dump(buffer);
+#endif
 
-            /*
-            // buffers don't always seem to start with goosePdu 0x01 tag, so advance to this
-            while ( startIndex < buffer.Length )
-            {
-                if (buffer[startIndex] == 0x01 && buffer[startIndex+1] == Common.CltpTag)
-                    break;
+            int index = startIndex + header.Length;
 
-                startIndex++;
-            }
-            */
-            //"somewhere else this is in error"
-            int index = startIndex + header.Length;// - 2;// - 3;
-
+#if NojaDebug
             Common.Dump(buffer, index, "Data, headerLength=" + header.Length.ToString());
+#endif
 
             // Validate and Skip a bunch of useless tags
             buffer.SkipTag(GooseTag.GocbRef, ref index);
@@ -867,8 +671,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             }
             else
             {
-                index--;
-                index--;
+                index -=2;
                 m_sampleCount = buffer.ParseUInt16Tag(SampledValueTag.SmpRate, ref index);
             }
 
@@ -901,43 +704,15 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             }
             if ((object)m_configurationFrame != null)
             {
-                // Validate that sample size matches current configuration
-                /*
-                if (dataBuffer.Length != m_configurationFrame.GetCalculatedGooseLength())
-                {
-                    // If it doesn't check configuration hasn't changed
-                    numDataBytes = ParseXmlConfig();
-                }
-                
-                if (dataBuffer.Length != m_configurationFrame.GetCalculatedGooseLength())
-                {
-                    // (Last chance) Possible frequnecy data is missing which is included in calculated lenght by default
-                    //if (dataBuffer.Length != m_configurationFrame.GetCalculatedGooseLength() - 8)
-                    // i dont think possible to check TESTn
-//                    throw new InvalidOperationException(String.Format("Configuration does not match data sample size - Expected {0}, but received {1} bytes from packet and {2} bytes from XML calculation", m_configurationFrame.GetCalculatedGooseLength(), dataBuffer.Length, numDataBytes));
-                }
-                */
+
                 // Parse the sequence (same as SV)
                 base.ParseBodyImage(dataBuffer, 0, dataBuffer.Length);
             }
-
-
-
         }
 
         // XML READER
         public int ParseXmlConfig()
         {
-            /*
-             * Method 3
-            var xmlString = File.ReadAllText(m_msvID + ".XML");
-            var stringReader = new StringReader(xmlString);
-            var dsSet = new DataSet();
-            dsSet.ReadXml(stringReader);
-            */
-
-            // return 0;
-
             int numDataBytes = 0;
             bool statusDefined = false;
 
@@ -946,17 +721,16 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
 
             ConfigurationFrame configFrame = new ConfigurationFrame(Common.Timebase, 1, DateTime.UtcNow.Ticks, m_sampleRate);
             ConfigurationCell configCell = new ConfigurationCell(configFrame, (ushort)(1 + configFrame.Cells.Count), LineFrequency.Hz60)
-            //           ConfigurationCell configCell = new ConfigurationCell(configFrame, (ushort)(m_idCode + configFrame.Cells.Count), LineFrequency.Hz60)
             {
-                StationName = m_stationName// + (configFrame.Cells.Count + 1)
+                StationName = m_stationName
             };
 
-//            ConfigurationCell configCell = new ConfigurationCell(configFrame, (ushort)(1 + configFrame.Cells.Count), LineFrequency.Hz50);
             String exceptionMessage = "";
             try
             {
+#if NojaDebug
                 Common.Dump("ParseXmlConfig " + m_msvID + ".XML" );
-
+#endif
                 // new xdoc instance 
                 XmlDocument xDoc = new XmlDocument();
 
@@ -969,14 +743,14 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                     // first node is the url ... have to go to nexted loc node 
                     foreach (XmlNode locNode in node)
                     {
+#if NojaDebug
                         Common.Dump(String.Format("{0}->{1},{2}->{3}", "node.Name", node.Name, "locNode.Value", locNode.Value));
+#endif
                         switch (node.Name)
                         {
                             case "FLAG":
                                 {
                                     numDataBytes += 1;
-                                    //   configCell.DigitalDefinitions.Add(new DigitalDefinition(configCell, locNode.Value, 0, 1));
-
                                     statusDefined = true;
                                     break;
                                 }
@@ -984,7 +758,6 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                                 {
                                     numDataBytes += 5;
                                     PhasorDefinition phasor = new PhasorDefinition(configCell, locNode.Value, 1, 0.0D, PhasorType.Voltage, null);
-                                    //phasor.Label = "A VPHA Label";
                                     configCell.PhasorDefinitions.Add(phasor);// new PhasorDefinition(configCell, locNode.Value, 1, 0.0D, PhasorType.Voltage, null));
 
                                     break;
@@ -1024,7 +797,6 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                                     // can't be determined
                                     DigitalDefinition digital = new DigitalDefinition(configCell, locNode.Value, 0, 1);
                                     digital.Label = "String";
-                                  //  configCell.DigitalDefinitions.Add(digital);
 
                                     numDataBytes += 0;
                                     break;
@@ -1032,11 +804,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                             case "BOOL":
                                 {
                                     DigitalDefinition digital = new DigitalDefinition(configCell, locNode.Value, 0, 1);
-                                 //   digital.Label = "Bool";
-                                   configCell.DigitalDefinitions.Add(digital);
-
-                                  //  numDataBytes += 5;
-                                  //  configCell.AnalogDefinitions.Add(new AnalogDefinition(configCell, locNode.Value, 1, 0.0D, AnalogType.SinglePointOnWave));
+                                    configCell.DigitalDefinitions.Add(digital);
 
                                     numDataBytes += 1;
                                     break;
@@ -1062,85 +830,14 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
 
             if ( !String.IsNullOrEmpty(exceptionMessage))
             {
+#if NojaDebug
                 Common.Dump(exceptionMessage);
-          //      throw new InvalidOperationException(exceptionMessage); TEST
+#endif
             }
 
-            /*
-             * JOELs method
-                        XmlReaderSettings settings = new XmlReaderSettings();
-                        settings.DtdProcessing = DtdProcessing.Parse;
-                        XmlReader reader = XmlReader.Create(m_msvID + ".XML", settings);
-                        reader.MoveToContent();
-                        String elementType = "NONE", lastElementType = "NONE";
-                        string label;
-                        bool statusDefined = false;
-                        ConfigurationFrame configFrame = new ConfigurationFrame(Common.Timebase, 1, DateTime.UtcNow.Ticks, m_sampleRate);
-                        ConfigurationCell configCell = new ConfigurationCell(configFrame, (ushort)(1 + configFrame.Cells.Count), LineFrequency.Hz50)
-                        {
-                            StationName = m_msvID
-                        };
-                        bool badOrder = false;
-                        // Parse the file and display each of the nodes.
-                        while (reader.Read())
-                        {
-                            switch (reader.NodeType)
-                            {
-                                case XmlNodeType.Element:
-                                    elementType = reader.Name;
-                                    break;
-                                case XmlNodeType.Text:
-                                    label = reader.Value;
-                                    switch (elementType)
-                                    {
-                                        case "FLAG":
-                                            badOrder = lastElementType != "NONE";
-                                            statusDefined = true;
-                                            break;
-                                        case "VPHA":
-                                        case "IPHA":
-                                            badOrder = (lastElementType != "FLAG" && lastElementType != "VPHA" && lastElementType != "IPHA");
-                                            PhasorDefinition phasor = new PhasorDefinition(configCell, label, 1, 0.0D, elementType == "VPHA" ? PhasorType.Voltage : PhasorType.Current, null);
-                                            configCell.PhasorDefinitions.Add(phasor);
-                                            break;
-                                        case "FREQ":
-                                            badOrder = (lastElementType != "VPHA" && lastElementType != "IPHA" && lastElementType != "FLAG");
-                                            break;
-                                        case "DFDT":
-                                            badOrder = lastElementType != "FREQ";
-                                            configCell.FrequencyDefinition = new FrequencyDefinition(configCell, "Frequency");
-                                            break;
-                                        case "ALOG":
-                                            badOrder = (lastElementType == "DIGI");
-                                            AnalogDefinition analog = new AnalogDefinition(configCell, label, 1, 0.0D, AnalogType.SinglePointOnWave);
-                                            configCell.AnalogDefinitions.Add(analog);
-                                            break;
-                                        case "DIGI":
-                                            DigitalDefinition digital = new DigitalDefinition(configCell, label, 0, 1);
-                                            configCell.DigitalDefinitions.Add(digital);
-                                            break;
-                                        default:
-                                            throw new InvalidOperationException("Unexpected signal type encountered: " + elementType);
-                                    }
-                                    lastElementType = elementType;
-                                    break;
-                                default:
-                                    break;
-                            }
-                            if (badOrder)
-                                throw new InvalidOperationException(string.Format("Invalid signal order encountered - {0} cannot follow {1}. Standard synchrophasor order is: status flags, one or more phasor magnitude/angle pairs, frequency, dF/dt, optional analogs, optional digitals", elementType, lastElementType));
-                        }
-            */
             if (!statusDefined)
                 throw new InvalidOperationException("No status flag signal was defined.");
 
-            /* 
-             * test
-            PhasorDefinition aphasor = new PhasorDefinition(configCell, "VPHA", 1, 0.0D, PhasorType.Voltage, null);
-            aphasor.Label = "A VPHA Label";
-            configCell.PhasorDefinitions.Add(aphasor);// new PhasorDefinition(configCell, locNode.Value, 1, 0.0D, PhasorType.Voltage, null));
-            configCell.PhasorDefinitions.Add(new PhasorDefinition(configCell, "IPHA", 1, 0.0D, PhasorType.Current, null));
-            */
             // Add cell to configuration frame
             configFrame.Cells.Add(configCell);
 
