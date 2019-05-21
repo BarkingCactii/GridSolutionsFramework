@@ -312,6 +312,17 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
 
     }
 
+    public enum MeasurementType : byte
+    {
+        Flag = 0x01,
+        Vpha = 0x02,
+        Ipha = 0x03,
+        Freq = 0x04,
+        Dfdt = 0x05,
+        Alog = 0x06,
+        Digi = 0x07
+    }
+
     /// <summary>
     /// Protocol draft revision numbers enumeration.
     /// </summary>

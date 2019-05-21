@@ -710,6 +710,16 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             }
         }
 
+        public class TLV
+        {
+            public DataType Type { get; set; }
+            public MeasurementType MeasurementType { get; set; }
+            public int Length { get; set; }
+            public object Value { get; set; }
+        }
+
+        public static List<TLV> gooseDataConfiguration = new List<TLV>();
+
         // XML READER
         public int ParseXmlConfig()
         {
@@ -731,6 +741,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
 #if NojaDebug
                 Common.Dump("ParseXmlConfig " + m_msvID + ".XML" );
 #endif
+
                 // new xdoc instance 
                 XmlDocument xDoc = new XmlDocument();
 
@@ -750,12 +761,18 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                         {
                             case "FLAG":
                                 {
-                                    numDataBytes += 1;
+                                    TLV tlv = new TLV() { Type = DataType.array, Length = 3, MeasurementType = MeasurementType.Flag, Value = new byte[3] };
+                                    gooseDataConfiguration.Add(tlv);
+
+                                    numDataBytes += 3;
                                     statusDefined = true;
                                     break;
                                 }
                             case "VPHA":
                                 {
+                                    TLV tlv = new TLV() { Type = DataType.floatingPoint, Length = 5, MeasurementType = MeasurementType.Vpha, Value = (double)0.0f };
+                                    gooseDataConfiguration.Add(tlv);
+
                                     numDataBytes += 5;
                                     PhasorDefinition phasor = new PhasorDefinition(configCell, locNode.Value, 1, 0.0D, PhasorType.Voltage, null);
                                     configCell.PhasorDefinitions.Add(phasor);// new PhasorDefinition(configCell, locNode.Value, 1, 0.0D, PhasorType.Voltage, null));
@@ -764,6 +781,9 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                                 }
                             case "IPHA":
                                 {
+                                    TLV tlv = new TLV() { Type = DataType.floatingPoint, Length = 5, MeasurementType = MeasurementType.Ipha, Value = (double)0.0f };
+                                    gooseDataConfiguration.Add(tlv);
+
                                     numDataBytes += 5;
                                     configCell.PhasorDefinitions.Add(new PhasorDefinition(configCell, locNode.Value, 1, 0.0D, PhasorType.Current, null));
                                     
@@ -771,29 +791,45 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                                 }
                             case "FREQ":
                                 {
+                                    TLV tlv = new TLV() { Type = DataType.floatingPoint, Length = 5, MeasurementType = MeasurementType.Freq, Value = (double)0.0f };
+                                    gooseDataConfiguration.Add(tlv);
+
                                     numDataBytes += 5;
                                     break;
                                 }
                             case "DFDT":
                                 {
+                                    TLV tlv = new TLV() { Type = DataType.floatingPoint, Length = 5, MeasurementType = MeasurementType.Dfdt, Value = (double)0.0f };
+                                    gooseDataConfiguration.Add(tlv);
+
                                     numDataBytes += 5;
                                     configCell.FrequencyDefinition = new FrequencyDefinition(configCell, "Frequency");
                                     break;
                                 }
                             case "ALOG":
                                 {
+                                    TLV tlv = new TLV() { Type = DataType.floatingPoint, Length = 5, MeasurementType = MeasurementType.Alog, Value = (double)0.0f };
+                                    gooseDataConfiguration.Add(tlv);
+
                                     numDataBytes += 5;
                                     configCell.AnalogDefinitions.Add(new AnalogDefinition(configCell, locNode.Value, 1, 0.0D, AnalogType.SinglePointOnWave));
                                     break;
                                 }
                             case "DIGI":
                                 {
-                                    numDataBytes += 5;
+                                    TLV tlv = new TLV() { Type = DataType.boolean, Length = 1, MeasurementType = MeasurementType.Digi, Value = (char)0 };
+                                    gooseDataConfiguration.Add(tlv);
+
+                                    numDataBytes += 1;
                                     configCell.DigitalDefinitions.Add(new DigitalDefinition(configCell, locNode.Value, 0, 1));
                                     break;
                                 }
                             case "STRING":
                                 {
+                                    // to be implemented
+                                    TLV tlv = new TLV() { Type = DataType.array, Length = 1, MeasurementType = MeasurementType.Digi, Value = (char)0 };
+                                    gooseDataConfiguration.Add(tlv);
+
                                     // can't be determined
                                     DigitalDefinition digital = new DigitalDefinition(configCell, locNode.Value, 0, 1);
                                     digital.Label = "String";

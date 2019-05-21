@@ -325,13 +325,167 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             if (parsingState != null && parsingState.ConfigurationFrame != null)
                 configurationCell = parsingState.ConfigurationFrame.Cells[index];
 
-            DataCell dataCell = new DataCell(parent as IDataFrame, configurationCell);
+            IEC61850_90_5_Goose.DataCell dataCell = new IEC61850_90_5_Goose.DataCell(parent as IDataFrame, configurationCell);
 
+#if NojaDebug
+            Common.Dump(buffer, 18, "Frequency");
+#endif
             parsedLength = dataCell.ParseBinaryImage(buffer, startIndex, 0);
+         //   parsedLength = dataCell.ParseBodyImage(buffer, startIndex, 0);
 
             return dataCell;
         }
 
         #endregion
+
+        /// <summary>
+        /// Initializes object by parsing the specified <paramref name="buffer"/> containing a binary image.
+        /// </summary>
+        /// <param name="buffer">Buffer containing binary image to parse.</param>
+        /// <param name="startIndex">0-based starting index in the <paramref name="buffer"/> to start parsing.</param>
+        /// <param name="length">Valid number of bytes within <paramref name="buffer"/> from <paramref name="startIndex"/>.</param>
+        /// <returns>The number of bytes used for initialization in the <paramref name="buffer"/> (i.e., the number of bytes parsed).</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="buffer"/> is null.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// <paramref name="startIndex"/> or <paramref name="length"/> is less than 0 -or- 
+        /// <paramref name="startIndex"/> and <paramref name="length"/> will exceed <paramref name="buffer"/> length.
+        /// </exception>
+        /// <remarks>
+        /// This method is not typically overridden since it is parses the header, body and footer images in sequence.
+        /// </remarks>
+        public override int ParseBinaryImage(byte[] buffer, int startIndex, int length)
+        {
+            buffer.ValidateParameters(startIndex, length);
+
+            int index = startIndex;
+
+            // Parse out header, body and footer images
+            index += ParseHeaderImage(buffer, index, length);
+            index += ParseBodyImage(buffer, index, length - (index - startIndex));
+            index += ParseFooterImage(buffer, index, length - (index - startIndex));
+
+            return (index - startIndex);
+        }
+
+        /// <summary>
+        /// Parses the binary body image.
+        /// </summary>
+        /// <param name="buffer">Binary image to parse.</param>
+        /// <param name="startIndex">Start index into <paramref name="buffer"/> to begin parsing.</param>
+        /// <param name="length">Length of valid data within <paramref name="buffer"/>.</param>
+        /// <returns>The length of the data that was parsed.</returns>
+        protected override int ParseBodyImage(byte[] buffer, int startIndex, int length)
+        {
+            // Length is validated at a frame level well in advance so that low level parsing routines do not have
+            // to re-validate that enough length is available to parse needed information as an optimization...
+            IConfigurationCell m_configurationCell = ConfigurationCell;
+            IDataCellParsingState parsingState = State;
+            IPhasorValue phasorValue;
+            IAnalogValue analogValue;
+            IDigitalValue digitalValue;
+            IFrequencyValue frequencyValue;
+
+            int x, parsedLength, index = startIndex;
+            int alogIdx = 0, digiIdx = 0, phasorIdx = 0;
+
+
+            foreach ( IEC61850_90_5_Goose.DataFrame.TLV tlv in IEC61850_90_5_Goose.DataFrame.gooseDataConfiguration )
+            {
+                switch ( tlv.MeasurementType ) {
+                    case MeasurementType.Alog:
+                        analogValue = parsingState.CreateNewAnalogValue(this, m_configurationCell.AnalogDefinitions[alogIdx], buffer, index, out parsedLength);
+                        alogIdx++;
+                        index += tlv.Length;
+                        // assign to base class
+                        AnalogValues.Add(analogValue);
+                        break;
+                    case MeasurementType.Dfdt:
+                        frequencyValue = parsingState.CreateNewFrequencyValue(this, m_configurationCell.FrequencyDefinition, buffer, index, out parsedLength);
+                        index += tlv.Length;
+                        // assign to base class
+                        FrequencyValue = frequencyValue;
+                        break;
+                    case MeasurementType.Digi:
+                        digitalValue = parsingState.CreateNewDigitalValue(this, m_configurationCell.DigitalDefinitions[digiIdx], buffer, index, out parsedLength);
+                        digiIdx++;
+                        index += tlv.Length;
+                        // assign to base class
+                        DigitalValues.Add(digitalValue);
+                        break;
+                    case MeasurementType.Flag:
+                        index += tlv.Length;
+                        break;
+                    case MeasurementType.Freq:
+                        frequencyValue = parsingState.CreateNewFrequencyValue(this, m_configurationCell.FrequencyDefinition, buffer, index, out parsedLength);
+                        index += tlv.Length;
+                        // assign to base class
+                        FrequencyValue = frequencyValue;
+                        break;
+                    case MeasurementType.Ipha:
+                        phasorValue = parsingState.CreateNewPhasorValue(this, m_configurationCell.PhasorDefinitions[phasorIdx], buffer, index, out parsedLength);
+                        index += tlv.Length;
+                        // assign to base class
+                        PhasorValues.Add( phasorValue );
+                        break;
+                    case MeasurementType.Vpha:
+                        phasorValue = parsingState.CreateNewPhasorValue(this, m_configurationCell.PhasorDefinitions[phasorIdx], buffer, index, out parsedLength);
+                        index += tlv.Length;
+                        // assign to base class
+                        PhasorValues.Add(phasorValue);
+                        break;
+                }
+            }
+
+            return index;
+
+            /*
+            IDataCellParsingState parsingState = State;
+            IPhasorValue phasorValue;
+            IAnalogValue analogValue;
+            IDigitalValue digitalValue;
+            int x, parsedLength, index = startIndex;
+
+            StatusFlags = BigEndian.ToUInt16(buffer, startIndex);
+            index += 2;
+
+            // By the very nature of the major phasor protocols supporting the same order of phasors, frequency, df/dt, analog and digitals
+            // we are able to "automatically" parse this data out in the data cell base class - BEAUTIFUL!!!
+
+            // Parse out phasor values
+            for (x = 0; x < parsingState.PhasorCount; x++)
+            {
+                phasorValue = parsingState.CreateNewPhasorValue(this, m_configurationCell.PhasorDefinitions[x], buffer, index, out parsedLength);
+                m_phasorValues.Add(phasorValue);
+                index += parsedLength;
+            }
+
+            // Parse out frequency and dF/dt values
+            m_frequencyValue = parsingState.CreateNewFrequencyValue(this, m_configurationCell.FrequencyDefinition, buffer, index, out parsedLength);
+#if NojaDebug
+            //Random random = new Random();
+            // m_frequencyValue.Frequency = random.NextDouble() * (55.0f - 45.0f) + 45.0f;
+#endif
+            index += parsedLength;
+
+            // Parse out analog values
+            for (x = 0; x < parsingState.AnalogCount; x++)
+            {
+                analogValue = parsingState.CreateNewAnalogValue(this, m_configurationCell.AnalogDefinitions[x], buffer, index, out parsedLength);
+                m_analogValues.Add(analogValue);
+                index += parsedLength;
+            }
+
+            // Parse out digital values
+            for (x = 0; x < parsingState.DigitalCount; x++)
+            {
+                digitalValue = parsingState.CreateNewDigitalValue(this, m_configurationCell.DigitalDefinitions[x], buffer, index, out parsedLength);
+                m_digitalValues.Add(digitalValue);
+                index += parsedLength;
+            }
+
+            // Return total parsed length
+            return (index - startIndex);
+            */
+        }
     }
 }
