@@ -49,7 +49,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             State = new DataCellParsingState(
                 configurationCell,
                 PhasorValue.CreateNewValue,
-                IEC61850_90_5_Goose.FrequencyValue.CreateNewValue,
+                IEC61850_90_5_Goose.FrequencyValue.CreateNewVariableValue, //.CreateNewVariValue.CreateNewVariValue,//.CreateNewValue,
                 AnalogValue.CreateNewValue,
                 DigitalValue.CreateNewValue);
         }
@@ -391,7 +391,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
 
             foreach ( IEC61850_90_5_Goose.DataFrame.TLV tlv in IEC61850_90_5_Goose.DataFrame.gooseDataConfiguration )
             {
-                switch ( tlv.MeasurementType ) {
+                switch (tlv.MeasurementType) {
                     case MeasurementType.Alog:
                         analogValue = parsingState.CreateNewAnalogValue(this, m_configurationCell.AnalogDefinitions[alogIdx], buffer, index, out parsedLength);
                         alogIdx++;
@@ -400,10 +400,10 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                         AnalogValues.Add(analogValue);
                         break;
                     case MeasurementType.Dfdt:
-                        frequencyValue = parsingState.CreateNewFrequencyValue(this, m_configurationCell.FrequencyDefinition, buffer, index, out parsedLength);
+                        frequencyValue = parsingState.CreateNewVariableFrequencyValue(this, m_configurationCell.FrequencyDefinition, buffer, index, tlv.Length);
                         index += tlv.Length;
                         // assign to base class
-                        FrequencyValue = frequencyValue;
+                      //  FrequencyValue = frequencyValue;
                         break;
                     case MeasurementType.Digi:
                         digitalValue = parsingState.CreateNewDigitalValue(this, m_configurationCell.DigitalDefinitions[digiIdx], buffer, index, out parsedLength);
@@ -416,11 +416,14 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                         index += tlv.Length;
                         break;
                     case MeasurementType.Freq:
-                        frequencyValue = parsingState.CreateNewFrequencyValue(this, m_configurationCell.FrequencyDefinition, buffer, index, out parsedLength);
+                        { 
+                        int tmp = tlv.Length;
+                        frequencyValue = parsingState.CreateNewVariableFrequencyValue(this, m_configurationCell.FrequencyDefinition, buffer, index, tlv.Length);//out parsedLength);
                         index += tlv.Length;
                         // assign to base class
                         FrequencyValue = frequencyValue;
                         break;
+                        }
                     case MeasurementType.Ipha:
                         phasorValue = parsingState.CreateNewPhasorValue(this, m_configurationCell.PhasorDefinitions[phasorIdx], buffer, index, out parsedLength);
                         index += tlv.Length;

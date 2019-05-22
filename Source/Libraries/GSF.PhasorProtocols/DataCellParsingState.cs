@@ -43,6 +43,9 @@ namespace GSF.PhasorProtocols
         private readonly CreateNewValueFunction<IAnalogDefinition, IAnalogValue> m_createNewAnalogValue;
         private readonly CreateNewValueFunction<IDigitalDefinition, IDigitalValue> m_createNewDigitalValue;
 
+        // variable length fields
+        private readonly CreateNewVariableValueFunction<IFrequencyDefinition, IFrequencyValue> m_createNewVariableFrequencyValue;
+
         #endregion
 
         #region [ Constructors ]
@@ -62,6 +65,34 @@ namespace GSF.PhasorProtocols
             m_createNewFrequencyValue = createNewFrequencyValue;
             m_createNewAnalogValue = createNewAnalogValue;
             m_createNewDigitalValue = createNewDigitalValue;
+
+            //m_createNewVariableFrequencyValue = createNewFrequencyValue;// create CreateNewVariableFrequencyValue;
+
+            if (m_configurationCell != null)
+            {
+                PhasorCount = m_configurationCell.PhasorDefinitions.Count;
+                AnalogCount = m_configurationCell.AnalogDefinitions.Count;
+                DigitalCount = m_configurationCell.DigitalDefinitions.Count;
+            }
+        }
+
+        /// <summary>
+        /// Creates a new <see cref="DataCellParsingState"/> from specified parameters.
+        /// </summary>
+        /// <param name="configurationCell">Reference to the <see cref="IConfigurationCell"/> associated with the <see cref="IDataCell"/> being parsed.</param>
+        /// <param name="createNewPhasorValue">Reference to delegate to create new <see cref="IPhasorValue"/> instances.</param>
+        /// <param name="createNewFrequencyValue">Reference to delegate to create new <see cref="IFrequencyValue"/> instances.</param>
+        /// <param name="createNewAnalogValue">Reference to delegate to create new <see cref="IAnalogValue"/> instances.</param>
+        /// <param name="createNewDigitalValue">Reference to delegate to create new <see cref="IDigitalValue"/> instances.</param>
+        public DataCellParsingState(IConfigurationCell configurationCell, CreateNewValueFunction<IPhasorDefinition, IPhasorValue> createNewPhasorValue, CreateNewVariableValueFunction<IFrequencyDefinition, IFrequencyValue> createNewVariableFrequencyValue, CreateNewValueFunction<IAnalogDefinition, IAnalogValue> createNewAnalogValue, CreateNewValueFunction<IDigitalDefinition, IDigitalValue> createNewDigitalValue)
+        {
+            m_configurationCell = configurationCell;
+            m_createNewPhasorValue = createNewPhasorValue;
+            //m_createNewFrequencyValue = createNewFrequencyValue;
+            m_createNewAnalogValue = createNewAnalogValue;
+            m_createNewDigitalValue = createNewDigitalValue;
+
+            m_createNewVariableFrequencyValue = createNewVariableFrequencyValue;// createNewVariableFrequencyValue;// create CreateNewVariableFrequencyValue;
 
             if (m_configurationCell != null)
             {
@@ -107,6 +138,18 @@ namespace GSF.PhasorProtocols
                 return m_createNewFrequencyValue;
             }
         }
+
+        /// <summary>
+        /// Gets reference to <see cref="CreateNewValueFunction{TDefinition,TValue}"/> delegate used to create new <see cref="IFrequencyValue"/> objects.
+        /// </summary>
+        public virtual CreateNewVariableValueFunction<IFrequencyDefinition, IFrequencyValue> CreateNewVariableFrequencyValue
+        {
+            get
+            {
+                return m_createNewVariableFrequencyValue;
+            }
+        }
+
 
         /// <summary>
         /// Gets reference to <see cref="CreateNewValueFunction{TDefinition,TValue}"/> delegate used to create new <see cref="IAnalogValue"/> objects.

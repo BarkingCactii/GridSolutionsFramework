@@ -43,6 +43,22 @@ namespace GSF.PhasorProtocols
         where TValue : IChannelValue<TDefinition>;
 
     /// <summary>
+    /// Defines function signature for creating new <see cref="IChannelValue{T}"/> objects.
+    /// </summary>
+    /// <param name="parent">Reference to parent <see cref="IDataCell"/>.</param>
+    /// <param name="definition">Refrence to associated <see cref="IChannelDefinition"/> object.</param>
+    /// <param name="buffer">Binary image to parse <see cref="IChannelValue{T}"/> from.</param>
+    /// <param name="startIndex">Start index into <paramref name="buffer"/> to begin parsing.</param>
+    /// <param name="parsedLength">Returns the total number of bytes parsed from <paramref name="buffer"/>.</param>
+    /// <returns>New <see cref="IChannelValue{T}"/> object.</returns>
+    /// <typeparam name="TDefinition">Specific <see cref="IChannelDefinition"/> type that the <see cref="IChannelValue{TDefinition}"/> references.</typeparam>
+    /// <typeparam name="TValue">Specific <see cref="IChannelValue{TDefinition}"/> type that the <see cref="CreateNewValueFunction{TDefinition,TValue}"/> creates.</typeparam>
+    public delegate TValue CreateNewVariableValueFunction<TDefinition, TValue>(IDataCell parent, TDefinition definition, byte[] buffer, int startIndex, int length)
+        where TDefinition : IChannelDefinition
+        where TValue : IChannelValue<TDefinition>;
+
+
+    /// <summary>
     /// Represents a protocol independent interface representation of the parsing state of any kind of <see cref="IDataCell"/>.
     /// </summary>
     public interface IDataCellParsingState : IChannelCellParsingState
@@ -67,6 +83,11 @@ namespace GSF.PhasorProtocols
         /// Gets reference to <see cref="CreateNewValueFunction{TDefinition,TValue}"/> delegate used to create new <see cref="IFrequencyValue"/> objects.
         /// </summary>
         CreateNewValueFunction<IFrequencyDefinition, IFrequencyValue> CreateNewFrequencyValue
+        {
+            get;
+        }
+
+        CreateNewVariableValueFunction<IFrequencyDefinition, IFrequencyValue> CreateNewVariableFrequencyValue
         {
             get;
         }

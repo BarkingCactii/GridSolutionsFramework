@@ -1265,7 +1265,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                 Cells[i].State = new DataCellParsingState(
                     configCell,
                     PhasorValue.CreateNewValue,
-                    FrequencyValue.CreateNewValue,
+                    FrequencyValue.CreateNewVariableValue,
                     AnalogValue.CreateNewValue,
                     DigitalValue.CreateNewValue);
             }
@@ -1310,7 +1310,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                 Cells[i].State = new DataCellParsingState(
                     configCell,
                     PhasorValue.CreateNewValue,
-                    FrequencyValue.CreateNewValue,
+                    FrequencyValue.CreateNewVariableValue,
                     AnalogValue.CreateNewValue,
                     DigitalValue.CreateNewValue);
             }
