@@ -403,7 +403,8 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                         frequencyValue = parsingState.CreateNewVariableFrequencyValue(this, m_configurationCell.FrequencyDefinition, buffer, index, tlv.Length);
                         index += tlv.Length;
                         // assign to base class
-                      //  FrequencyValue = frequencyValue;
+                        
+                        FrequencyValue.DfDt = frequencyValue.Frequency;
                         break;
                     case MeasurementType.Digi:
                         digitalValue = parsingState.CreateNewDigitalValue(this, m_configurationCell.DigitalDefinitions[digiIdx], buffer, index, out parsedLength);
