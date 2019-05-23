@@ -149,12 +149,21 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
 
             if (DataFormat == DataFormat.FixedInteger)
             {
-                // UnscaledFrequency = BigEndian.ToInt16(buffer, startIndex);
-                //   UnscaledDfDt = BigEndian.ToInt16(buffer, startIndex + 2);
-
-                // test
-                Value = 99;
-                return 4;
+                if (length > 1)
+                {
+                    byte[] bytes = new byte[length];
+                    Array.Copy(buffer, startIndex, bytes, 0, length);
+                    if (BitConverter.IsLittleEndian)
+                    {
+                        bytes = bytes.Reverse().ToArray();
+                    }
+                    Value = BitConverter.ToUInt16(bytes, 0);
+                }
+                else
+                {
+                    Value = buffer[startIndex];
+                }
+                return length;
             }
             else
             {
