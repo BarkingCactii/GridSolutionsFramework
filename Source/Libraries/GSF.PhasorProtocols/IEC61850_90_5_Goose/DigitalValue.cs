@@ -25,6 +25,7 @@
 
 using System;
 using System.Runtime.Serialization;
+using System.Linq;
 
 namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
 {
@@ -117,6 +118,59 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             return digital;
         }
 
+        // Delegate handler to create a new IEC 61850-90-5 digital value
+        internal static IDigitalValue CreateNewVariableValue(IDataCell parent, IDigitalDefinition definition, byte[] buffer, int startIndex, int length)
+        {
+            IDigitalValue digital = new DigitalValue(parent, definition);
+
+            int parsedLength = digital.ParseBinaryImage(buffer, startIndex, length);
+
+            return digital;
+        }
+
         #endregion
+
+        /// <summary>
+        /// Parses the binary body image.
+        /// </summary>
+        /// <param name="buffer">Binary image to parse.</param>
+        /// <param name="startIndex">Start index into <paramref name="buffer"/> to begin parsing.</param>
+        /// <param name="length">Length of valid data within <paramref name="buffer"/>.</param>
+        /// <returns>The length of the data that was parsed.</returns>
+        /// <remarks>
+        /// The base implementation assumes fixed integer values are represented as 16-bit signed
+        /// integers and floating point values are represented as 32-bit single-precision floating-point
+        /// values (i.e., short and float data types respectively).
+        /// </remarks>
+        protected override int ParseBodyImage(byte[] buffer, int startIndex, int length)
+        {
+            // Length is validated at a frame level well in advance so that low level parsing routines do not have
+            // to re-validate that enough length is available to parse needed information as an optimization...
+
+            if (DataFormat == DataFormat.FixedInteger)
+            {
+                // UnscaledFrequency = BigEndian.ToInt16(buffer, startIndex);
+                //   UnscaledDfDt = BigEndian.ToInt16(buffer, startIndex + 2);
+
+                // test
+                Value = 99;
+                return 4;
+            }
+            else
+            {
+                // not supported
+                /*
+                byte[] bytes = new byte[length];
+                Array.Copy(buffer, startIndex, bytes, 0, length);
+                if (BitConverter.IsLittleEndian)
+                {
+                    bytes = bytes.Reverse().ToArray();
+                }
+                Value = BitConverter.ToSingle(bytes, 0);
+                */
+                return length;
+            }
+        }
+
     }
 }

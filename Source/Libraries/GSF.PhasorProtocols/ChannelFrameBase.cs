@@ -482,7 +482,12 @@ namespace GSF.PhasorProtocols
             T cell;
             int parsedLength, index = startIndex;
 
+            // clear list
+//            m_cells.Clear();
+
             // Parse all frame cells
+            if (state.CellCount == 1)
+                m_cells.Clear();
             for (int x = 0; x < state.CellCount; x++)
             {
                 cell = state.CreateNewCell(this, state, x, buffer, index, out parsedLength);

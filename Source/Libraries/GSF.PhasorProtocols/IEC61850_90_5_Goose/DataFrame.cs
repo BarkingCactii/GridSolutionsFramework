@@ -1264,10 +1264,10 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                 // Update local parsing state with new configuration info
                 Cells[i].State = new DataCellParsingState(
                     configCell,
-                    PhasorValue.CreateNewValue,
+                    PhasorValue.CreateNewVariableValue,
                     FrequencyValue.CreateNewVariableValue,
-                    AnalogValue.CreateNewValue,
-                    DigitalValue.CreateNewValue);
+                    AnalogValue.CreateNewVariableValue,
+                    DigitalValue.CreateNewVariableValue);
             }
 
             // Publish the configuration frame to the rest of the system
@@ -1309,10 +1309,10 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                 // Update local parsing state with new configuration info
                 Cells[i].State = new DataCellParsingState(
                     configCell,
-                    PhasorValue.CreateNewValue,
+                    PhasorValue.CreateNewVariableValue,
                     FrequencyValue.CreateNewVariableValue,
-                    AnalogValue.CreateNewValue,
-                    DigitalValue.CreateNewValue);
+                    AnalogValue.CreateNewVariableValue,
+                    DigitalValue.CreateNewVariableValue);
             }
 
             // Publish the configuration frame to the rest of the system

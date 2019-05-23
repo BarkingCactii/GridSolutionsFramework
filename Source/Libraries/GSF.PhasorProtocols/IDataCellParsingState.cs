@@ -80,6 +80,14 @@ namespace GSF.PhasorProtocols
         }
 
         /// <summary>
+        /// Gets reference to <see cref="CreateNewVariableValueFunction{TDefinition,TValue}"/> delegate used to create new <see cref="IPhasorValue"/> objects.
+        /// </summary>
+        CreateNewVariableValueFunction<IPhasorDefinition, IPhasorValue> CreateNewVariablePhasorValue
+        {
+            get;
+        }
+
+        /// <summary>
         /// Gets reference to <see cref="CreateNewValueFunction{TDefinition,TValue}"/> delegate used to create new <see cref="IFrequencyValue"/> objects.
         /// </summary>
         CreateNewValueFunction<IFrequencyDefinition, IFrequencyValue> CreateNewFrequencyValue
@@ -87,6 +95,9 @@ namespace GSF.PhasorProtocols
             get;
         }
 
+        /// <summary>
+        /// Gets reference to <see cref="CreateNewVariableValueFunction{TDefinition,TValue}"/> delegate used to create new <see cref="IFrequencyValue"/> objects.
+        /// </summary>
         CreateNewVariableValueFunction<IFrequencyDefinition, IFrequencyValue> CreateNewVariableFrequencyValue
         {
             get;
@@ -101,11 +112,28 @@ namespace GSF.PhasorProtocols
         }
 
         /// <summary>
+        /// Gets reference to <see cref="CreateNewVariableValueFunction{TDefinition,TValue}"/> delegate used to create new <see cref="IAnalogValue"/> objects.
+        /// </summary>
+        CreateNewVariableValueFunction<IAnalogDefinition, IAnalogValue> CreateNewVariableAnalogValue
+        {
+            get;
+        }
+
+        /// <summary>
         /// Gets reference to <see cref="CreateNewValueFunction{TDefinition,TValue}"/> delegate used to create new <see cref="IDigitalValue"/> objects.
         /// </summary>
         CreateNewValueFunction<IDigitalDefinition, IDigitalValue> CreateNewDigitalValue
         {
             get;
         }
+
+        /// <summary>
+        /// Gets reference to <see cref="CreateNewValueFunction{TDefinition,TValue}"/> delegate used to create new <see cref="IDigitalValue"/> objects.
+        /// </summary>
+        CreateNewVariableValueFunction<IDigitalDefinition, IDigitalValue> CreateNewVariableDigitalValue
+        {
+            get;
+        }
+
     }
 }
