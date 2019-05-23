@@ -168,15 +168,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             else
             {
                 // not supported
-                /*
-                byte[] bytes = new byte[length];
-                Array.Copy(buffer, startIndex, bytes, 0, length);
-                if (BitConverter.IsLittleEndian)
-                {
-                    bytes = bytes.Reverse().ToArray();
-                }
-                Value = BitConverter.ToSingle(bytes, 0);
-                */
+                Value = 0;
                 return length;
             }
         }
