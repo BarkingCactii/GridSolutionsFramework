@@ -684,27 +684,25 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             // Confirm next tag is actual data
             int dataLength = buffer.SkipTag(GooseTag.AllData, ref index);
 
-            // Extract data without tags to new buffer
+            if ((object)m_configurationFrame == null)
+            {
+                if (header.UseETRConfiguration)
+                {
+                    // need to do something with numDataBytes?
+                    int numDataBytes = ParseXmlConfig();
+                }
+                else
+                    throw new InvalidOperationException("No configuration available, data will be ignored");
+            }
+
+            // Extract data without tags to new buffer, make sure Xml is parsed first, so length values can be pre-filled
             byte[] dataBuffer = buffer.ExtractGooseData(index - dataLength, dataLength);
 
             // skip final stNum tag, this is the final zero length unsigned type
             buffer.SkipTag(GooseTag.StNum, ref index);
 
-            int numDataBytes = 0;
-
-            if ((object)m_configurationFrame == null)
-            {
-                if (header.UseETRConfiguration)
-                {
-                    // need to do something with numDataBytes
-                    numDataBytes = ParseXmlConfig();
-                }
-                else
-                    throw new InvalidOperationException("No configuration available, data will be ignored");
-            }
             if ((object)m_configurationFrame != null)
             {
-
                 // Parse the sequence (same as SV)
                 base.ParseBodyImage(dataBuffer, 0, dataBuffer.Length);
             }
@@ -761,7 +759,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                         {
                             case "FLAG":
                                 {
-                                    TLV tlv = new TLV() { Type = DataType.array, Length = 3, MeasurementType = MeasurementType.Flag, Value = new byte[3] };
+                                    TLV tlv = new TLV() { Type = DataType.array, Length = 0, MeasurementType = MeasurementType.Flag, Value = new byte[3] };
                                     gooseDataConfiguration.Add(tlv);
 
                                     numDataBytes += 3;
@@ -770,7 +768,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                                 }
                             case "VPHA":
                                 {
-                                    TLV tlv = new TLV() { Type = DataType.floatingPoint, Length = 5, MeasurementType = MeasurementType.Vpha, Value = (double)0.0f };
+                                    TLV tlv = new TLV() { Type = DataType.floatingPoint, Length = 0, MeasurementType = MeasurementType.Vpha, Value = (double)0.0f };
                                     gooseDataConfiguration.Add(tlv);
 
                                     numDataBytes += 5;
@@ -781,7 +779,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                                 }
                             case "IPHA":
                                 {
-                                    TLV tlv = new TLV() { Type = DataType.floatingPoint, Length = 5, MeasurementType = MeasurementType.Ipha, Value = (double)0.0f };
+                                    TLV tlv = new TLV() { Type = DataType.floatingPoint, Length = 0, MeasurementType = MeasurementType.Ipha, Value = (double)0.0f };
                                     gooseDataConfiguration.Add(tlv);
 
                                     numDataBytes += 5;
@@ -791,7 +789,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                                 }
                             case "FREQ":
                                 {
-                                    TLV tlv = new TLV() { Type = DataType.floatingPoint, Length = 5, MeasurementType = MeasurementType.Freq, Value = (double)0.0f };
+                                    TLV tlv = new TLV() { Type = DataType.floatingPoint, Length = 0, MeasurementType = MeasurementType.Freq, Value = (double)0.0f };
                                     gooseDataConfiguration.Add(tlv);
 
                                     numDataBytes += 5;
@@ -799,7 +797,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                                 }
                             case "DFDT":
                                 {
-                                    TLV tlv = new TLV() { Type = DataType.floatingPoint, Length = 5, MeasurementType = MeasurementType.Dfdt, Value = (double)0.0f };
+                                    TLV tlv = new TLV() { Type = DataType.floatingPoint, Length = 0, MeasurementType = MeasurementType.Dfdt, Value = (double)0.0f };
                                     gooseDataConfiguration.Add(tlv);
 
                                     numDataBytes += 5;
@@ -808,7 +806,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                                 }
                             case "ALOG":
                                 {
-                                    TLV tlv = new TLV() { Type = DataType.floatingPoint, Length = 5, MeasurementType = MeasurementType.Alog, Value = (double)0.0f };
+                                    TLV tlv = new TLV() { Type = DataType.floatingPoint, Length = 0, MeasurementType = MeasurementType.Alog, Value = (double)0.0f };
                                     gooseDataConfiguration.Add(tlv);
 
                                     numDataBytes += 5;
@@ -817,7 +815,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                                 }
                             case "DIGI":
                                 {
-                                    TLV tlv = new TLV() { Type = DataType.boolean, Length = 1, MeasurementType = MeasurementType.Digi, Value = (char)0 };
+                                    TLV tlv = new TLV() { Type = DataType.boolean, Length = 0, MeasurementType = MeasurementType.Digi, Value = (char)0 };
                                     gooseDataConfiguration.Add(tlv);
 
                                     numDataBytes += 1;
@@ -827,7 +825,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                             case "STRING":
                                 {
                                     // to be implemented
-                                    TLV tlv = new TLV() { Type = DataType.array, Length = 1, MeasurementType = MeasurementType.Digi, Value = (char)0 };
+                                    TLV tlv = new TLV() { Type = DataType.array, Length = 0, MeasurementType = MeasurementType.Digi, Value = (char)0 };
                                     gooseDataConfiguration.Add(tlv);
 
                                     // can't be determined

@@ -989,6 +989,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             // Form array of data types for comparison
             DataType[] dataType = Enum.GetValues(typeof(DataType)).Cast<DataType>().ToArray();
 
+            int tlvIdx = 0;
             // Loop through to buffers end
             for ( int i = startIndex; i < startIndex + length; i++ )
             {
@@ -1001,6 +1002,9 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                     {
                         int tagLength = buffer.ValidateTag(DataType.structure, ref i);
                         i += tagLength - 1;
+
+                        DataFrame.gooseDataConfiguration[tlvIdx].Length = tagLength;
+                        tlvIdx++;
                         break;
                     }
                     // Check if data type matches
@@ -1009,8 +1013,12 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                         // Acquire data length
                         int tagLength = buffer.ValidateTag(type, ref i);
 
-                        if (type == DataType.boolean)
-                            tagLength = 1;
+                        //   if (type == DataType.boolean)
+                        //      tagLength = 1;
+
+                        // set the real length now
+                        DataFrame.gooseDataConfiguration[tlvIdx].Length = tagLength;
+                        tlvIdx++;
 
                         // Add data to list
                         for (int j = i; j < tagLength + i; j++)
