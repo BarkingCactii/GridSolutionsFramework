@@ -152,7 +152,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             {
                 // not supported
 //                UnscaledFrequency = BigEndian.ToInt16(buffer, startIndex);
-?/                UnscaledDfDt = BigEndian.ToInt16(buffer, startIndex + 2);
+//                UnscaledDfDt = BigEndian.ToInt16(buffer, startIndex + 2);
 
                 return length;
             }

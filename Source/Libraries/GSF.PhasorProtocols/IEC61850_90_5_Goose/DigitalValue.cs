@@ -168,7 +168,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             else
             {
                 // not supported, set to -1
-                Value = -1;
+                Value = 0;
                 return length;
             }
         }
