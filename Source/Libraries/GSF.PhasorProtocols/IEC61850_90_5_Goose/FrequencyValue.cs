@@ -148,30 +148,25 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
         {
             // Length is validated at a frame level well in advance so that low level parsing routines do not have
             // to re-validate that enough length is available to parse needed information as an optimization...
-
             if (DataFormat == DataFormat.FixedInteger)
             {
-                UnscaledFrequency = BigEndian.ToInt16(buffer, startIndex);
-                UnscaledDfDt = BigEndian.ToInt16(buffer, startIndex + 2);
+                // not supported
+//                UnscaledFrequency = BigEndian.ToInt16(buffer, startIndex);
+?/                UnscaledDfDt = BigEndian.ToInt16(buffer, startIndex + 2);
 
-                return 4;
+                return length;
             }
             else
             {
-                byte[] bytes = new byte[length];// buffer.CopyTo(buffer, startIndex, BitConverter.GetBytes(0x084244999A);
+                byte[] bytes = new byte[length];
                 Array.Copy(buffer, startIndex, bytes, 0, length);
                 if (BitConverter.IsLittleEndian)
                 {
                     bytes = bytes.Reverse().ToArray();
                 }
                 Frequency = BitConverter.ToSingle(bytes, 0);
-               // Frequency = BigEndian.ToSingle(buffer, startIndex);
                 return length;
             }
-            //DfDt= BigEndian.ToSingle(buffer, startIndex + 4);
-
-            // m_frequencyAssigned = true;
-            //m_dfdtAssigned = true;
         }
     }
 }

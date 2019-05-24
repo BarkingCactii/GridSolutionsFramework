@@ -1035,6 +1035,14 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                     }
                 }
             }
+
+            // quick check the TLV list is valid and matches data packet
+            foreach ( DataFrame.TLV tlv in DataFrame.gooseDataConfiguration)
+            {
+                if (tlv.Length == -1)
+                    throw new InvalidOperationException(String.Format("Goose XML configuration doesn't match actual incoming data. Exception thrown at {0}{1}", tlv.Type.ToString(), tlv.MeasurementType.ToString()));
+            }
+
             // Return byte array for parsing
             return gooseData.ToArray();
         }

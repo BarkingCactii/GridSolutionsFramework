@@ -149,10 +149,8 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
 
             if (DataFormat == DataFormat.FixedInteger)
             {
-               // UnscaledFrequency = BigEndian.ToInt16(buffer, startIndex);
-             //   UnscaledDfDt = BigEndian.ToInt16(buffer, startIndex + 2);
-
-                return 4;
+                // not supported, so ignore
+                return length;
             }
             else
             {

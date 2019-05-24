@@ -227,13 +227,17 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
 
             if (DataFormat == DataFormat.FixedInteger)
             {
-                // UnscaledFrequency = BigEndian.ToInt16(buffer, startIndex);
-                //   UnscaledDfDt = BigEndian.ToInt16(buffer, startIndex + 2);
-
-                return 4;
+                // not implemented, so ignore
+                return length;
             }
             else
             {
+                // it is very unlikely that phasor values will be present in a goose message
+                // However, they are singular value is supported using either of the XML tags 
+                // 	 <VPHA></VPHA> Voltage Phasor
+                //   <IPHA></IPHA> Current Phasor
+                // if either of these are in the datastream, they will be assigned to both Magnitude and Angle
+                //
                 byte[] bytes = new byte[length];
                 Array.Copy(buffer, startIndex, bytes, 0, length);
                 if (BitConverter.IsLittleEndian)
@@ -243,7 +247,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                 Angle = BitConverter.ToSingle(bytes, 0);
                 // for testing
                 Magnitude = Angle;
-                Real = Angle;
+               // Real = Angle;
                 return length;
             }
         }
