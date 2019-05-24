@@ -389,7 +389,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             int alogIdx = 0, digiIdx = 0, phasorIdx = 0;
 
 
-            foreach ( IEC61850_90_5_Goose.DataFrame.TLV tlv in IEC61850_90_5_Goose.DataFrame.gooseDataConfiguration )
+            foreach ( TimeLengthValue tlv in Common.gooseDataConfiguration )
             {
                 switch (tlv.MeasurementType) {
                     case MeasurementType.Alog:

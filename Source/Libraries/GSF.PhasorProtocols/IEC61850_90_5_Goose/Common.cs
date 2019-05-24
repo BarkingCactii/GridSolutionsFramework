@@ -681,6 +681,12 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
         public const uint TimeQualityFlagsMask = (uint)(Bits.Bit31 | Bits.Bit30 | Bits.Bit29 | Bits.Bit28 | Bits.Bit27 | Bits.Bit26 | Bits.Bit25 | Bits.Bit24);
 
         /// <summary>
+        /// Time Length Value
+        /// Limitations - currently assumes 1 goose stream per PDC
+        /// </summary>
+        public static List<TimeLengthValue> gooseDataConfiguration = new List<TimeLengthValue>();
+
+        /// <summary>
         /// Validates sample value tag exists and skips past it.
         /// </summary>
         /// <param name="buffer">Buffer containing sampled value tag length.</param>
@@ -1003,7 +1009,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                         int tagLength = buffer.ValidateTag(DataType.structure, ref i);
                         i += tagLength - 1;
 
-                        DataFrame.gooseDataConfiguration[tlvIdx].Length = tagLength;
+                        Common.gooseDataConfiguration[tlvIdx].Length = tagLength;
                         tlvIdx++;
                         break;
                     }
@@ -1017,7 +1023,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                         //      tagLength = 1;
 
                         // set the real length now
-                        DataFrame.gooseDataConfiguration[tlvIdx].Length = tagLength;
+                        Common.gooseDataConfiguration[tlvIdx].Length = tagLength;
                         tlvIdx++;
 
                         // Add data to list
@@ -1037,7 +1043,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             }
 
             // quick check the TLV list is valid and matches data packet
-            foreach ( DataFrame.TLV tlv in DataFrame.gooseDataConfiguration)
+            foreach (TimeLengthValue tlv in Common.gooseDataConfiguration)
             {
                 if (tlv.Length == -1)
                     throw new InvalidOperationException(String.Format("Goose XML configuration doesn't match actual incoming data. Exception thrown at {0}{1}", tlv.Type.ToString(), tlv.MeasurementType.ToString()));

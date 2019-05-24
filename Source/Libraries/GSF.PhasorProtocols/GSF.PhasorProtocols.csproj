@@ -167,6 +167,7 @@
     <Compile Include="IEC61850_90_5_Goose\NamespaceDoc.cs" />
     <Compile Include="IEC61850_90_5_Goose\PhasorDefinition.cs" />
     <Compile Include="IEC61850_90_5_Goose\PhasorValue.cs" />
+    <Compile Include="IEC61850_90_5_Goose\TimeLenghValue.cs" />
     <Compile Include="IFrameParser.cs" />
     <Compile Include="IFrequencyDefinition.cs" />
     <Compile Include="IFrequencyValue.cs" />
