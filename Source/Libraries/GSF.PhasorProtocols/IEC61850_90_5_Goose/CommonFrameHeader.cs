@@ -187,8 +187,6 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             // See if frame is for a common IEEE C37.118 frame (e.g., for configuration or command)
             if (buffer[startIndex] == PhasorProtocols.Common.SyncByte)
             {
-                Common.Dump(String.Format("Condition 1: SessionType {0}, Length {1}, StartIndex {2}, Index {3}", m_sessionType.ToString(), length, startIndex, -1));
-
                 // Strip out frame type and version information...
                 m_frameType = (FrameType)(buffer[startIndex + 1] & ~VersionNumberMask);
                 m_version = (byte)(buffer[startIndex + 1] & VersionNumberMask);
@@ -225,7 +223,6 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             }
             else
             {
-                Common.Dump(buffer, startIndex, "***Bad Data Stream ***", "startIndex = " + startIndex.ToString());
                 throw new InvalidOperationException("Bad data stream, expected sync byte 0xAA or 0x01 as first byte in IEC 61850-90-5 frame, got 0x" + buffer[startIndex].ToString("X").PadLeft(2, '0') + " at index " + startIndex.ToString() + "\n" + BitConverter.ToString(buffer).Replace("-", " "));
             }
         }
@@ -249,8 +246,6 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
 
                 // Get session type (Goose, sampled values, etc.)
                 m_sessionType = (SessionType)buffer[index++];
-
-                Common.Dump(String.Format("Goose: SessionType {0}, Length {1}, StartIndex {2}, Index {3}", m_sessionType.ToString(), length, startIndex, index));
 
                 // Make sure session type is sampled values or goose
                 if (m_sessionType == SessionType.Goose)
@@ -419,8 +414,6 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                             index += 3;
 
                             // parsing starts at 0x80 gocbRef
-                            Common.Dump(buffer, index, "Header");
-
                             // skip the last 0x85 0x00 sequence
                             // buffer.SkipTag(GooseTag.StNum, ref index);
                         }
@@ -434,7 +427,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                 }
                 catch (Exception ex)
                 {
-                    Common.Dump(ex.Message);
+                    throw new CrcException("Error processing IEC 61850-90-5 Goose Header. " + ex.Message);
                 }
                 return index;
             }

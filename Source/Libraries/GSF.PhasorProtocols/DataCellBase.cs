@@ -510,7 +510,7 @@ namespace GSF.PhasorProtocols
             m_frequencyValue = parsingState.CreateNewFrequencyValue(this, m_configurationCell.FrequencyDefinition, buffer, index, out parsedLength);
 #if NojaDebug
             //Random random = new Random();
-           // m_frequencyValue.Frequency = random.NextDouble() * (55.0f - 45.0f) + 45.0f;
+           // m_frequencyValue.Frequency = random.NextDouble() * (55.0f - 45.0f) + 45.0f;77
 #endif
             index += parsedLength;
 

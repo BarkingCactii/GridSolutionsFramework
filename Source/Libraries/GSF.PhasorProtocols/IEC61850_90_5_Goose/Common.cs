@@ -709,8 +709,6 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
         /// <param name="index">Start index of buffer where tag length begins - will be auto-incremented.</param>
         public static int ValidateTag(this byte[] buffer, DataType tag, ref int index)
         {
-            Common.Dump(buffer, index, "ValidateTag Type", "Data type = " + tag.ToString(), "Index = " + index.ToString());
-
             if ((DataType )buffer[index] != tag)
                 throw new InvalidOperationException("Encountered out-of-sequence or unknown data type tag: 0x" + buffer[index].ToString("X").PadLeft(2, '0'));
 
@@ -726,24 +724,18 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
         /// <param name="index">Start index of buffer where tag length begins - will be auto-incremented.</param>
         public static int ValidateTag(this byte[] buffer, GooseTag tag, ref int index)
         {
-            Common.Dump(buffer, index, "ValidateTag()", "GooseTag = " + tag.ToString(), "Index = " + index.ToString());
-
             if ((GooseTag)buffer[index] != tag)
             {
                 String output = String.Format("Encountered out-of-sequence or unknown goose tag: 0x{0} should be 0x{1}. Index {2}, Tag{3}, HexDump{4}",
                     buffer[index].ToString("X").PadLeft(2, '0'), tag.ToString("X").PadLeft(2, '0'),
                     index.ToString(), tag.ToString(), BitConverter.ToString(buffer).Replace("-", " "));
 
-                Common.Dump(buffer, index, "Out of sequence, shoule be something else, parsing tag " + tag.ToString());
-
                 throw new InvalidOperationException(output);
             }
 
             index++;
             int tagLength = buffer.ParseTagLength(ref index);
-           // index += tagLength;
             return tagLength;
-            //return buffer.ParseTagLength(ref index);
         }
 
         /// <summary>
@@ -988,7 +980,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
         public static byte[] ExtractGooseData(this byte[] buffer, int idx, int length)
         {
             int startIndex = idx;
-            Common.Dump(buffer, startIndex, "ExtractGooseData()", "Index = " + startIndex.ToString() + " length = " + length.ToString());
+
             // Create list to store data
             List<byte> gooseData = new List<byte>();
 
@@ -1018,9 +1010,6 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                     {
                         // Acquire data length
                         int tagLength = buffer.ValidateTag(type, ref i);
-
-                        //   if (type == DataType.boolean)
-                        //      tagLength = 1;
 
                         // set the real length now
                         Common.gooseDataConfiguration[tlvIdx].Length = tagLength;
@@ -1175,8 +1164,6 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                     int threadId = 0;
                     String outputStr = Common.TimeStamp(out threadId) + str + Environment.NewLine;
                     File.AppendAllText(Common.CreateFile(threadId), outputStr);
-
-//                    File.AppendAllText("jeff.txt", Common.TimeStamp() + str + "\n");
                     return;
                 }
                 catch
@@ -1215,15 +1202,12 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                             String spacer = (i == index - 1) ? "=>" : ((i == index) ? "<=" : " ");
                             outputStr += String.Format("{0}{1}{2}", BitConverter.ToString(binary, i, 1), spacer, ((i+1) % 16) == 0 ? Environment.NewLine : "");
                         }
-                        //outputStr += BitConverter.ToString(binary).Replace("-", " ") + "\n";
                         outputStr += Environment.NewLine;
                     }
 
                     int threadId = 0;
                     outputStr = Common.TimeStamp(out threadId) + outputStr;
                     File.AppendAllText(Common.CreateFile(threadId), outputStr);
-
-                    //File.AppendAllText("jeff.txt", Common.TimeStamp() + outputStr);
                     return;
                 }
                 catch

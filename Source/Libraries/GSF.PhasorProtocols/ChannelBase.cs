@@ -24,7 +24,6 @@
 //       Modified Header.
 //
 //******************************************************************************************************
-//#define jeff
 
 using System;
 using System.Collections.Generic;

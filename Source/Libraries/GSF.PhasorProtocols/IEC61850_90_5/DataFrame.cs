@@ -585,16 +585,6 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
         public override int ParseBinaryImage(byte[] buffer, int startIndex, int length)
         {
             // Overrides base class behavior, ASDUs can generally be parsed even without configuration.
-            /*
-            while (startIndex < buffer.Length)
-            {
-                if (buffer[startIndex] == 0x01 && buffer[startIndex + 1] == Common.CltpTag)
-                    break;
-
-                startIndex++;
-                length--;
-            }
-            */
             buffer.ValidateParameters(startIndex, length);
             CommonFrameHeader header = CommonHeader;
             IDataFrameParsingState state = State;
@@ -607,7 +597,6 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
                 if (configurationFrame.Cells[0].AnalogDefinitions.Count != 14)
                     ConfigurationFrame = configurationFrame as ConfigurationFrame;
             }
-            //int tagLength, index = startIndex;
 
             // Header has already been parsed, skip past it
             //index += header.Length;
@@ -620,12 +609,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             {
                 ParseSampledValues(buffer, header, startIndex, length);
             }
-            /*
-            else if (header.SessionID == SessionType.Goose)
-            {
-                ParseGoose(buffer, header, startIndex, length);
-            }
-            */
+            
             // We're not parsing any of the items remaining in the footer...
             return header.FrameLength;
         }

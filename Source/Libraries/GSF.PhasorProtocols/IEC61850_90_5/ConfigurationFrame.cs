@@ -50,7 +50,6 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
         private CommonFrameHeader m_frameHeader;
         private uint m_timebase;
         private int m_calculatedSampleLength;
-        private int m_calculatedGooseLength;
 
         #endregion
 
@@ -370,15 +369,11 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
             Type fieldsType = obj.GetType();
 
             // Get an array of FieldInfo objects.
-            FieldInfo[] fields = fieldsType.GetFields(BindingFlags.Public
-                | BindingFlags.Instance);
+            FieldInfo[] fields = fieldsType.GetFields(BindingFlags.Public | BindingFlags.Instance);
             // Display the values of the fields.
-            //Console.WriteLine("Displaying the values of the fields of {0}:", fieldsType);
             for (int i = 0; i < fields.Length; i++)
             {
                 result += String.Format("{0}: {1}\n", fields[i].Name, fields[i].GetValue(obj));
-
-//                Console.WriteLine("   {0}:\t'{1}'",                   fields[i].Name, fields[i].GetValue(fieldsInst));
             }
             return result;
         }

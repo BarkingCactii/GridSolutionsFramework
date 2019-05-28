@@ -418,7 +418,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5
                 }
                 catch (Exception ex)
                 {
-                    Common.Dump(ex.Message);
+                    throw new CrcException("Error processing IEC 61850-90-5 Header." + ex.Message);
                 }
                 return index;
             }

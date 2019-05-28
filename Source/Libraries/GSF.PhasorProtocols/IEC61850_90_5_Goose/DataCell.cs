@@ -327,11 +327,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
 
             IEC61850_90_5_Goose.DataCell dataCell = new IEC61850_90_5_Goose.DataCell(parent as IDataFrame, configurationCell);
 
-#if NojaDebug
-            Common.Dump(buffer, 18, "Frequency");
-#endif
             parsedLength = dataCell.ParseBinaryImage(buffer, startIndex, 0);
-         //   parsedLength = dataCell.ParseBodyImage(buffer, startIndex, 0);
 
             return dataCell;
         }
@@ -385,9 +381,8 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             IDigitalValue digitalValue;
             IFrequencyValue frequencyValue;
 
-            int x, parsedLength, index = startIndex;
+            int index = startIndex;
             int alogIdx = 0, digiIdx = 0, phasorIdx = 0;
-
 
             foreach ( TimeLengthValue tlv in Common.gooseDataConfiguration )
             {
@@ -445,55 +440,6 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             }
 
             return index;
-
-            /*
-            IDataCellParsingState parsingState = State;
-            IPhasorValue phasorValue;
-            IAnalogValue analogValue;
-            IDigitalValue digitalValue;
-            int x, parsedLength, index = startIndex;
-
-            StatusFlags = BigEndian.ToUInt16(buffer, startIndex);
-            index += 2;
-
-            // By the very nature of the major phasor protocols supporting the same order of phasors, frequency, df/dt, analog and digitals
-            // we are able to "automatically" parse this data out in the data cell base class - BEAUTIFUL!!!
-
-            // Parse out phasor values
-            for (x = 0; x < parsingState.PhasorCount; x++)
-            {
-                phasorValue = parsingState.CreateNewPhasorValue(this, m_configurationCell.PhasorDefinitions[x], buffer, index, out parsedLength);
-                m_phasorValues.Add(phasorValue);
-                index += parsedLength;
-            }
-
-            // Parse out frequency and dF/dt values
-            m_frequencyValue = parsingState.CreateNewFrequencyValue(this, m_configurationCell.FrequencyDefinition, buffer, index, out parsedLength);
-#if NojaDebug
-            //Random random = new Random();
-            // m_frequencyValue.Frequency = random.NextDouble() * (55.0f - 45.0f) + 45.0f;
-#endif
-            index += parsedLength;
-
-            // Parse out analog values
-            for (x = 0; x < parsingState.AnalogCount; x++)
-            {
-                analogValue = parsingState.CreateNewAnalogValue(this, m_configurationCell.AnalogDefinitions[x], buffer, index, out parsedLength);
-                m_analogValues.Add(analogValue);
-                index += parsedLength;
-            }
-
-            // Parse out digital values
-            for (x = 0; x < parsingState.DigitalCount; x++)
-            {
-                digitalValue = parsingState.CreateNewDigitalValue(this, m_configurationCell.DigitalDefinitions[x], buffer, index, out parsedLength);
-                m_digitalValues.Add(digitalValue);
-                index += parsedLength;
-            }
-
-            // Return total parsed length
-            return (index - startIndex);
-            */
         }
     }
 }
