@@ -1,0 +1,108 @@
+<?xml version="1.0"?>
+<!-- 
+    This XML document is used as a substitute for a config frame for a device in OpenPDC
+    This is set using the useETRConfiguration=true flag for the input device
+    Note that currently the label name is ignored since measurement data has to be manually added.
+    A automated way of added the phasor/measurement data would be great according to the element values
+
+    Available elements and their required order are as follows:
+    <FLAG></FLAG> The STAT element of the Synchrophasor dataset (only 1) (generally 3 bytes)
+    <VPHA></VPHA> Voltage Phasor - float
+    <IPHA></IPHA> Current Phasor - float
+    <FREQ></FREQ> Frequency - float
+    <DFDT></DFDT> Rate of Change of Frequency (ROCOF) - float
+    <ALOG></ALOG> Analogue value - float
+    <DIGI></DIGI> Digitial Value - integer/char
+    <STRING></STRING> Not implemented - array
+    <BOOL></BOOL> Not implemented - currently mapped to a DIGI
+    <STRUCT></STRUCT> Nested data
+
+    The order of the tags in this XML exactly dictates the order in which the goose data will arrive.
+    There is no requirement in the order the data is to be sent, or a requirement that any data type is NOT sent.
+    It is quite normal that FREQ data will not be sent.
+    Note that nesting data via STRUCT tags is now implemented
+
+    An example dataset shown below to demonstrate order requirements:
+    <?xml version="1.0">
+      <Dataset>
+        <FLAG>Stat</FLAG>
+        <VPHA>VPHA1</VPHA>
+        <VPHA>VPHA2</VPHA>
+        <IPHA>IPHA1</IPHA>
+        <IPHA>IPHA2</IPHA>
+        <FREQ>FREQ</FREQ>
+        <DFDT>ROCOF</DFDT>
+        <ALOG>AV1</ALOG>
+        <STRUCT>
+          <DIGI>DV1</DIGI>
+          <DIGI>DV2</DIGI>
+        </STRUCT>
+      </Dataset>
+-->
+
+<!-- 
+
+    When you add measurements to the PDC use the following text below as part of the name, so an association can be formed with the tags in this file below
+
+    SignalKind.cs
+    
+       public static SignalKind ParseSignalKind(this string acronym)
+        {
+            switch (acronym)
+            {
+                case "PA": // Phase Angle
+                    return SignalKind.Angle;
+                case "PM": // Phase Magnitude
+                    return SignalKind.Magnitude;
+                case "FQ": // Frequency
+                    return SignalKind.Frequency;
+                case "DF": // dF/dt
+                    return SignalKind.DfDt;
+                case "SF": // Status Flags
+                    return SignalKind.Status;
+                case "DV": // Digital Value
+                    return SignalKind.Digital;
+                case "AV": // Analog Value
+                    return SignalKind.Analog;
+                case "CV": // Calculated Value
+                    return SignalKind.Calculation;
+                case "ST": // Statistical Value
+                    return SignalKind.Statistic;
+                case "AL": // Alarm Value
+                    return SignalKind.Alarm;
+                case "QF": // Quality Flags
+                    return SignalKind.Quality;
+                default:
+                    return SignalKind.Unknown;
+            }
+        }
+    
+    The names below (the labels within the tags) have really no significance.
+    Their only value is to map them as shown in the function above. 
+    So if you have 3 analoges, you would label them AV1, AV2, AV3 in that order.
+ 	    <ALOG>AV1</ALOG>
+ 	    <ALOG>AV2</ALOG>
+	    <ALOG>AV3</ALOG>
+    That way you can match the corresponding value in Graph Measurements in the PDC Manager
+
+    <STRUCT>
+      <ALOG>ALOG4</ALOG>
+    </STRUCT>
+-->
+
+<Dataset>
+  <VPHA>VPHA1</VPHA>
+  <VPHA>VPHA2</VPHA>
+  <ALOG>ALOG1</ALOG>
+  <ALOG>ALOG2</ALOG>
+  <DIGI>DIGI1</DIGI>
+  <DIGI>DIGI2</DIGI>
+  <STRUCT>
+    <ALOG>ALOG3</ALOG>
+    <ALOG>ALOG4</ALOG>
+  </STRUCT>  
+  <STRUCT>
+    <ALOG>ALOG5</ALOG>
+    <ALOG>ALOG6</ALOG>
+  </STRUCT>  
+</Dataset>

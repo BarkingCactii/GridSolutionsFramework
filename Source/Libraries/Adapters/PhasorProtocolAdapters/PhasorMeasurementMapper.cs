@@ -1714,32 +1714,10 @@ namespace PhasorProtocolAdapters
             MapMeasurementAttributes(mappedMeasurements, m_qualityFlagsKey?.Metadata, frame.GetQualityFlagsMeasurement());
 
             // Loop through each parsed device in the data frame
-            for ( int i = 0; i < frame.Cells.Count; i++ )
-            //foreach (IDataCell parsedDevice in frame.Cells)
+            foreach (IDataCell parsedDevice in frame.Cells)
             {
-                IDataCell parsedDevice = frame.Cells[i];
-             //   "why not working?"
-                if (i > 0)
-                    Console.WriteLine("debug here");
                 try
                 {
-/*                    
-                    if (parsedDevice.StationName != "Shelby" && parsedDevice.StationName != "NP_PMU_SIM")
-                    {
-                        Console.WriteLine("break here");
-                        bool result = m_definedDevices.TryGetValue(parsedDevice.IDCode, out statisticsHelper);
-                        if ( result == false )
-                        {
-                            // try first index
-                            result = m_definedDevices.TryGetValue(1, out statisticsHelper);
-                        }
-                        Console.WriteLine("break here");
-                    }
-                    else
-                    {
-                        m_definedDevices.TryGetValue(parsedDevice.IDCode, out statisticsHelper);
-                    }
-                    */
                     // Lookup device by its label (if needed), then by its ID code
                     if (((object)m_labelDefinedDevices != null &&
                         m_labelDefinedDevices.TryGetValue(parsedDevice.StationName.ToNonNullString(), out statisticsHelper)) ||
@@ -1807,7 +1785,7 @@ namespace PhasorProtocolAdapters
                         }
                         catch
                         {
-                            OnStatusMessage(MessageLevel.Warning, $"measurements or frequency error in ExtractFrameMeasurements");
+                            // don't report as it can be normal to not have a frequency defined in Goose packets
                         }
 
                         // Map analog values (AVn)
@@ -1966,15 +1944,19 @@ namespace PhasorProtocolAdapters
                 }
             }
 
+
             // Ignore frequency measurements when
             // frequency value is zero - some PDCs use
             // zero for missing frequency values
-            if (frequencyValue.Frequency != 0.0D)
+            if (frequencyValue != null)
             {
-                foreach (IMeasurement measurement in frequencyValue.Measurements)
+                if (frequencyValue.Frequency != 0.0D)
                 {
-                    if (!double.IsNaN(measurement.Value))
-                        parsedMeasurementCount++;
+                    foreach (IMeasurement measurement in frequencyValue.Measurements)
+                    {
+                        if (!double.IsNaN(measurement.Value))
+                            parsedMeasurementCount++;
+                    }
                 }
             }
 
@@ -2030,12 +2012,15 @@ namespace PhasorProtocolAdapters
             // Ignore frequency measurements when
             // frequency value is zero - some PDCs use
             // zero for missing frequency values
-            if (frequencyValue.Frequency != 0.0D)
-            {
-                foreach (IMeasurement measurement in frequencyValue.Measurements)
+            if (frequencyValue != null)
+            { 
+                if (frequencyValue.Frequency != 0.0D)
                 {
-                    if (hasError(measurement.StateFlags) && !double.IsNaN(measurement.Value))
-                        parsedMeasurementCount++;
+                    foreach (IMeasurement measurement in frequencyValue.Measurements)
+                    {
+                        if (hasError(measurement.StateFlags) && !double.IsNaN(measurement.Value))
+                            parsedMeasurementCount++;
+                    }
                 }
             }
 

@@ -387,6 +387,10 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             foreach ( TimeLengthValue tlv in Common.gooseDataConfiguration )
             {
                 switch (tlv.MeasurementType) {
+                    case MeasurementType.Array:
+                        // partially implemented
+                        index += tlv.Length;
+                        break;
                     case MeasurementType.Alog:
                         analogValue = parsingState.CreateNewVariableAnalogValue(this, m_configurationCell.AnalogDefinitions[alogIdx], buffer, index, tlv.Length);//out parsedLength);
                         alogIdx++;

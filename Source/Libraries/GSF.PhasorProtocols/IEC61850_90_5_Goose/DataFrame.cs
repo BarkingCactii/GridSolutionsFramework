@@ -698,11 +698,29 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             }
         }
 
+        /*
+        public void xmlsection(XmlSection Section)
+        {
+            cont.ContentControls.Add(new Separator(xml.Sections[section].Name));
+            foreach (var variable in xml.Sections[section].Variables)
+            {
+                TraverseVars(cont, xml.Sections[section].Name, variable.Value.Name, variable.Value.Title, variable.Value.Default1, variable.Value.Default2, variable.Value.Default3, variable.Value.DesignerType);
+                i++;
+            }
+            if (xml.Sections[section].Sections.Count > 0)
+            {
+                foreach (var section2 in xml.Sections[section].Sections.Keys)
+                {
+                    xmlsection(section2);
+                }
+            }
+
+        }
+        */
         // XML READER
         public int ParseXmlConfig()
         {
             int numDataBytes = 0;
-            bool statusDefined = false;
 
             // if we don't set it, it will be null
             m_stationName = m_msvID;
@@ -710,10 +728,11 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             ConfigurationFrame configFrame = new ConfigurationFrame(Common.Timebase, 1, DateTime.UtcNow.Ticks, m_sampleRate);
             ConfigurationCell configCell = new ConfigurationCell(configFrame, (ushort)(1 + configFrame.Cells.Count), LineFrequency.Hz60)
             {
-                StationName = m_stationName
+                StationName = m_stationName,
             };
 
-            String exceptionMessage = "";
+            configCell.FrequencyDefinition = new FrequencyDefinition(configCell, "Frequency");
+
             try
             {
                 // new xdoc instance 
@@ -728,116 +747,13 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                 // cycle through each child noed 
                 foreach (XmlNode node in xDoc.DocumentElement.ChildNodes)
                 {
-                    // first node is the url ... have to go to nexted loc node 
-                    foreach (XmlNode locNode in node)
-                    {
-                        switch (node.Name)
-                        {
-                            case "FLAG":
-                                {
-                                    TimeLengthValue tlv = new TimeLengthValue() { Type = DataType.array, Length = -1, MeasurementType = MeasurementType.Flag, Value = new byte[3] };
-                                    Common.gooseDataConfiguration.Add(tlv);
-
-                                    numDataBytes += 3;
-                                    statusDefined = true;
-                                    break;
-                                }
-                            case "VPHA":
-                                {
-                                    TimeLengthValue tlv = new TimeLengthValue() { Type = DataType.floatingPoint, Length = -1, MeasurementType = MeasurementType.Vpha, Value = (double)0.0f };
-                                    Common.gooseDataConfiguration.Add(tlv);
-
-                                    numDataBytes += 5;
-                                    PhasorDefinition phasor = new PhasorDefinition(configCell, locNode.Value, 1, 0.0D, PhasorType.Voltage, null);
-                                    configCell.PhasorDefinitions.Add(phasor);// new PhasorDefinition(configCell, locNode.Value, 1, 0.0D, PhasorType.Voltage, null));
-
-                                    break;
-                                }
-                            case "IPHA":
-                                {
-                                    TimeLengthValue tlv = new TimeLengthValue() { Type = DataType.floatingPoint, Length = -1, MeasurementType = MeasurementType.Ipha, Value = (double)0.0f };
-                                    Common.gooseDataConfiguration.Add(tlv);
-
-                                    numDataBytes += 5;
-                                    configCell.PhasorDefinitions.Add(new PhasorDefinition(configCell, locNode.Value, 1, 0.0D, PhasorType.Current, null));
-                                    
-                                    break;
-                                }
-                            case "FREQ":
-                                {
-                                    TimeLengthValue tlv = new TimeLengthValue() { Type = DataType.floatingPoint, Length = -1, MeasurementType = MeasurementType.Freq, Value = (double)0.0f };
-                                    Common.gooseDataConfiguration.Add(tlv);
-
-                                    numDataBytes += 5;
-                                    break;
-                                }
-                            case "DFDT":
-                                {
-                                    TimeLengthValue tlv = new TimeLengthValue() { Type = DataType.floatingPoint, Length = -1, MeasurementType = MeasurementType.Dfdt, Value = (double)0.0f };
-                                    Common.gooseDataConfiguration.Add(tlv);
-
-                                    numDataBytes += 5;
-                                    configCell.FrequencyDefinition = new FrequencyDefinition(configCell, "Frequency");
-                                    break;
-                                }
-                            case "ALOG":
-                                {
-                                    TimeLengthValue tlv = new TimeLengthValue() { Type = DataType.floatingPoint, Length = -1, MeasurementType = MeasurementType.Alog, Value = (double)0.0f };
-                                    Common.gooseDataConfiguration.Add(tlv);
-
-                                    numDataBytes += 5;
-                                    configCell.AnalogDefinitions.Add(new AnalogDefinition(configCell, locNode.Value, 1, 0.0D, AnalogType.SinglePointOnWave));
-                                    break;
-                                }
-                            case "DIGI":
-                                {
-                                    TimeLengthValue tlv = new TimeLengthValue() { Type = DataType.boolean, Length = -1, MeasurementType = MeasurementType.Digi, Value = (char)0 };
-                                    Common.gooseDataConfiguration.Add(tlv);
-
-                                    numDataBytes += 1;
-                                    configCell.DigitalDefinitions.Add(new DigitalDefinition(configCell, locNode.Value, 0, 1));
-                                    break;
-                                }
-                            case "STRING":
-                                {
-                                    // to be implemented
-                                    TimeLengthValue tlv = new TimeLengthValue() { Type = DataType.array, Length = -1, MeasurementType = MeasurementType.Digi, Value = (char)0 };
-                                    Common.gooseDataConfiguration.Add(tlv);
-
-                                    // can't be determined
-                                    DigitalDefinition digital = new DigitalDefinition(configCell, locNode.Value, 0, 1);
-                                    digital.Label = "String";
-
-                                    numDataBytes += 0;
-                                    break;
-                                }
-                            case "BOOL":
-                                {
-                                    DigitalDefinition digital = new DigitalDefinition(configCell, locNode.Value, 0, 1);
-                                    configCell.DigitalDefinitions.Add(digital);
-
-                                    numDataBytes += 1;
-                                    break;
-                                }
-                            default:
-                                {
-                                    exceptionMessage += "Unexpected signal type aaaaencountered: " + node.Name + Environment.NewLine;
-                                    // dont throw exception so we can process as much as possible
-                                    //throw new InvalidOperationException("Unexpected signal type encountered: " + node.Name);
-                                    break;
-                                }
-                        }
-                    }
+                    numDataBytes = ParseNode(node, configCell, numDataBytes);
                 }
             }
-
             catch (Exception ex)
             {
                 throw new InvalidOperationException(ex.Message);
             }
-
-            if (!statusDefined)
-                throw new InvalidOperationException("No status flag signal was defined.");
 
             // Add cell to configuration frame
             configFrame.Cells.Add(configCell);
@@ -845,6 +761,117 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
             // Publish configuration frame
             PublishNewConfigurationFrame(configFrame);
 
+            return numDataBytes;
+        }
+
+        private int ParseNode(XmlNode node, ConfigurationCell configCell, int numDataBytes)
+        {
+            foreach (XmlNode innerNode in node)
+            {
+                if (innerNode.NodeType == XmlNodeType.Element)
+                {
+                    numDataBytes = ParseNode(innerNode, configCell, numDataBytes);
+                    continue;
+                }
+
+                if (innerNode.NodeType == XmlNodeType.Text)
+                {
+                    switch (node.Name)
+                    {
+                        case "STRUCT":
+                            {
+                                break;
+                            }
+                        case "FLAG":
+                            {
+                                TimeLengthValue tlv = new TimeLengthValue() { Type = DataType.array, Length = -1, MeasurementType = MeasurementType.Flag, Value = new byte[3] };
+                                Common.gooseDataConfiguration.Add(tlv);
+
+                                numDataBytes += 3;
+                                break;
+                            }
+                        case "VPHA":
+                            {
+                                TimeLengthValue tlv = new TimeLengthValue() { Type = DataType.floatingPoint, Length = -1, MeasurementType = MeasurementType.Vpha, Value = (double)0.0f };
+                                Common.gooseDataConfiguration.Add(tlv);
+
+                                numDataBytes += 5;
+                                PhasorDefinition phasor = new PhasorDefinition(configCell, innerNode.Value, 1, 0.0D, PhasorType.Voltage, null);
+                                configCell.PhasorDefinitions.Add(phasor);
+                                break;
+                            }
+                        case "IPHA":
+                            {
+                                TimeLengthValue tlv = new TimeLengthValue() { Type = DataType.floatingPoint, Length = -1, MeasurementType = MeasurementType.Ipha, Value = (double)0.0f };
+                                Common.gooseDataConfiguration.Add(tlv);
+
+                                numDataBytes += 5;
+                                configCell.PhasorDefinitions.Add(new PhasorDefinition(configCell, innerNode.Value, 1, 0.0D, PhasorType.Current, null));
+                                break;
+                            }
+                        case "FREQ":
+                            {
+                                TimeLengthValue tlv = new TimeLengthValue() { Type = DataType.floatingPoint, Length = -1, MeasurementType = MeasurementType.Freq, Value = (double)0.0f };
+                                Common.gooseDataConfiguration.Add(tlv);
+
+                                numDataBytes += 5;
+                                break;
+                            }
+                        case "DFDT":
+                            {
+                                TimeLengthValue tlv = new TimeLengthValue() { Type = DataType.floatingPoint, Length = -1, MeasurementType = MeasurementType.Dfdt, Value = (double)0.0f };
+                                Common.gooseDataConfiguration.Add(tlv);
+
+                                numDataBytes += 5;
+                                configCell.FrequencyDefinition = new FrequencyDefinition(configCell, "Frequency");
+                                break;
+                            }
+                        case "ALOG":
+                            {
+                                TimeLengthValue tlv = new TimeLengthValue() { Type = DataType.floatingPoint, Length = -1, MeasurementType = MeasurementType.Alog, Value = (double)0.0f };
+                                Common.gooseDataConfiguration.Add(tlv);
+
+                                numDataBytes += 5;
+                                configCell.AnalogDefinitions.Add(new AnalogDefinition(configCell, innerNode.Value, 1, 0.0D, AnalogType.SinglePointOnWave));
+                                break;
+                            }
+                        case "DIGI":
+                            {
+                                TimeLengthValue tlv = new TimeLengthValue() { Type = DataType.boolean, Length = -1, MeasurementType = MeasurementType.Digi, Value = (char)0 };
+                                Common.gooseDataConfiguration.Add(tlv);
+
+                                numDataBytes += 1;
+                                configCell.DigitalDefinitions.Add(new DigitalDefinition(configCell, innerNode.Value, 0, 1));
+                                break;
+                            }
+                        case "STRING":
+                            {
+                                // to be implemented
+                                TimeLengthValue tlv = new TimeLengthValue() { Type = DataType.array, Length = -1, MeasurementType = MeasurementType.Digi, Value = (char)0 };
+                                Common.gooseDataConfiguration.Add(tlv);
+
+                                // can't be determined
+                                DigitalDefinition digital = new DigitalDefinition(configCell, innerNode.Value, 0, 1);
+                                digital.Label = "String";
+
+                                numDataBytes += 0;
+                                break;
+                            }
+                        case "BOOL":
+                            {
+                                DigitalDefinition digital = new DigitalDefinition(configCell, innerNode.Value, 0, 1);
+                                configCell.DigitalDefinitions.Add(digital);
+
+                                numDataBytes += 1;
+                                break;
+                            }
+                        default:
+                            {
+                                break;
+                            }
+                    }
+                }
+            }
             return numDataBytes;
         }
 

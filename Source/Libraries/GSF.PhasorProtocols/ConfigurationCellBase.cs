@@ -68,7 +68,6 @@ namespace GSF.PhasorProtocols
             : base(parent, idCode)
         {
             m_nominalFrequency = LineFrequency.Hz60; // Defaulting to 60Hz
-
             // We convert maximum counts to last valid indices (count - 1):
             m_phasorDefinitions = new PhasorDefinitionCollection(maximumPhasors - 1);
             m_analogDefinitions = new AnalogDefinitionCollection(maximumAnalogs - 1);

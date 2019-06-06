@@ -320,7 +320,8 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
         Freq = 0x04,
         Dfdt = 0x05,
         Alog = 0x06,
-        Digi = 0x07
+        Digi = 0x07,
+        Array = 0x08
     }
 
     /// <summary>
@@ -999,10 +1000,10 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                     if ((DataType)buffer[i] == DataType.structure)
                     {
                         int tagLength = buffer.ValidateTag(DataType.structure, ref i);
-                        i += tagLength - 1;
 
-                        Common.gooseDataConfiguration[tlvIdx].Length = tagLength;
-                        tlvIdx++;
+                        // advance just 2 bytes, don't add array to configuration list as it contains no data
+                        // just add its children
+                        i -= 1;
                         break;
                     }
                     // Check if data type matches

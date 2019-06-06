@@ -344,6 +344,11 @@
       <Name>GSF.TimeSeries</Name>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="IEC61850_90_5_Goose\GoPMU.XML">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
   <Target Name="AfterBuild">
     <CallTarget Targets="SignBuild" />
   </Target>
