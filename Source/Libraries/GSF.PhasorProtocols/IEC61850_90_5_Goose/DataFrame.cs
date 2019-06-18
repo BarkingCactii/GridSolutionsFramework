@@ -685,13 +685,10 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                     throw new InvalidOperationException("No configuration available, data will be ignored");
             }
 
-            Common.Dump(buffer, index - dataLength);
-
             // Extract data without tags to new buffer, make sure Xml is parsed first, so length values can be pre-filled
             byte[] dataBuffer = buffer.ExtractGooseData(index - dataLength, dataLength);
 
             // skip final stNum tag, this is the final zero length unsigned type
-            Common.Dump(buffer, index);
         //    buffer.SkipTag(GooseTag.StNum, ref index);
 
             if ((object)m_configurationFrame != null)
