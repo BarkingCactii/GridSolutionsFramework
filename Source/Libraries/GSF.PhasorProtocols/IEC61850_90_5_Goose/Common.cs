@@ -1,4 +1,6 @@
-﻿//******************************************************************************************************
+﻿#define NojaDebug
+
+//******************************************************************************************************
 //  Common.cs - Gbtc
 //
 //  Copyright © 2012, Grid Protection Alliance.  All Rights Reserved.
@@ -34,7 +36,7 @@ using System.Threading;
 
 namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
 {
-    #region [ Enumerations ]
+#region [ Enumerations ]
 
     /// <summary>
     /// IEC 61850-90-5 frame types enumeration.
@@ -608,7 +610,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
         Manual = (byte)Bits.Nil
     }
 
-    #endregion
+#endregion
 
     /// <summary>
     /// Common IEC 61850-90-5 declarations and functions.

@@ -389,7 +389,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                         // Get ASDU payload size
                         m_payloadSize = BigEndian.ToUInt16(buffer, index);
                         index += 2;
-
+                        /*
                         // Do some specific things related to SV
                         if (m_sessionType == SessionType.SampledValues)
                         {
@@ -406,9 +406,10 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                             buffer.ValidateTag(SampledValueTag.SequenceOfAsdu, ref index);
                         }
                         // If the session type is not SV, check it is GOOSE (again)
-                        else if (m_sessionType == SessionType.Goose)
+                        else */
+                        if (m_sessionType == SessionType.Goose)
                         {
-                            frameLength += 2; // account for end of packet 0x85 0x00
+                           // frameLength += 2; // account for end of packet 0x85 0x00
 
                             // skip past 0x61, 0x81 and len fields
                             index += 3;
