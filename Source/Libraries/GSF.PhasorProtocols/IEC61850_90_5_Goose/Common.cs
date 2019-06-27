@@ -323,7 +323,8 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
         Dfdt = 0x05,
         Alog = 0x06,
         Digi = 0x07,
-        Array = 0x08
+        Array = 0x08,
+        BitString = 0x09
     }
 
     /// <summary>

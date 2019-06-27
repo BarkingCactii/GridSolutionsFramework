@@ -50,6 +50,7 @@ namespace GSF.PhasorProtocols
         private readonly CreateNewVariableValueFunction<IFrequencyDefinition, IFrequencyValue> m_createNewVariableFrequencyValue;
         private readonly CreateNewVariableValueFunction<IAnalogDefinition, IAnalogValue> m_createNewVariableAnalogValue;
         private readonly CreateNewVariableValueFunction<IDigitalDefinition, IDigitalValue> m_createNewVariableDigitalValue;
+        private readonly CreateNewVariableValueFunction<IDigitalDefinition, IDigitalValue> m_createNewVariableBitStringValue;
 
         #endregion
 
@@ -66,7 +67,7 @@ namespace GSF.PhasorProtocols
         public DataCellParsingState(IConfigurationCell configurationCell, 
             CreateNewValueFunction<IPhasorDefinition, IPhasorValue> createNewPhasorValue, 
             CreateNewValueFunction<IFrequencyDefinition, IFrequencyValue> createNewFrequencyValue, 
-            CreateNewValueFunction<IAnalogDefinition, IAnalogValue> createNewAnalogValue, 
+            CreateNewValueFunction<IAnalogDefinition, IAnalogValue> createNewAnalogValue,
             CreateNewValueFunction<IDigitalDefinition, IDigitalValue> createNewDigitalValue)
         {
             m_configurationCell = configurationCell;
@@ -94,7 +95,8 @@ namespace GSF.PhasorProtocols
         public DataCellParsingState(IConfigurationCell configurationCell, 
             CreateNewVariableValueFunction<IPhasorDefinition, IPhasorValue> createNewVariablePhasorValue, 
             CreateNewVariableValueFunction<IFrequencyDefinition, IFrequencyValue> createNewVariableFrequencyValue, 
-            CreateNewVariableValueFunction<IAnalogDefinition, IAnalogValue> createNewVariableAnalogValue, 
+            CreateNewVariableValueFunction<IAnalogDefinition, IAnalogValue> createNewVariableAnalogValue,
+            CreateNewVariableValueFunction<IDigitalDefinition, IDigitalValue> createNewVariableBitStringValue,
             CreateNewVariableValueFunction<IDigitalDefinition, IDigitalValue> createNewVariableDigitalValue)
         {
             m_configurationCell = configurationCell;
@@ -102,6 +104,7 @@ namespace GSF.PhasorProtocols
             m_createNewVariableFrequencyValue = createNewVariableFrequencyValue;
             m_createNewVariableAnalogValue = createNewVariableAnalogValue;
             m_createNewVariableDigitalValue = createNewVariableDigitalValue;
+            m_createNewVariableBitStringValue = createNewVariableBitStringValue;
 
 
             if (m_configurationCell != null)
@@ -213,6 +216,17 @@ namespace GSF.PhasorProtocols
             get
             {
                 return m_createNewVariableDigitalValue;
+            }
+        }
+
+        /// <summary>
+        /// Gets reference to <see cref="CreateNewValueFunction{TDefinition,TValue}"/> delegate used to create new <see cref="IDigitalValue"/> objects.
+        /// </summary>
+        public virtual CreateNewVariableValueFunction<IDigitalDefinition, IDigitalValue> CreateNewVariableBitStringValue
+        {
+            get
+            {
+                return m_createNewVariableBitStringValue;
             }
         }
 

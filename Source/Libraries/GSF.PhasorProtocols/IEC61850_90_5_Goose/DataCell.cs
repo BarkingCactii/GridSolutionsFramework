@@ -51,6 +51,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                 GSF.PhasorProtocols.IEC61850_90_5_Goose.PhasorValue.CreateNewVariableValue,
                 GSF.PhasorProtocols.IEC61850_90_5_Goose.FrequencyValue.CreateNewVariableValue,
                 GSF.PhasorProtocols.IEC61850_90_5_Goose.AnalogValue.CreateNewVariableValue,
+                GSF.PhasorProtocols.IEC61850_90_5_Goose.BitStringValue.CreateNewVariableValue,
                 GSF.PhasorProtocols.IEC61850_90_5_Goose.DigitalValue.CreateNewVariableValue);
         }
 
@@ -406,6 +407,15 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                         break;
                     case MeasurementType.Digi:
                         digitalValue = parsingState.CreateNewVariableDigitalValue(this, m_configurationCell.DigitalDefinitions[digiIdx], buffer, index, tlv.Length);//out parsedLength);
+                        
+                        digiIdx++;
+                        index += tlv.Length;
+                        // assign to base class
+                        DigitalValues.Add(digitalValue);
+                        break;
+                    case MeasurementType.BitString:
+                        digitalValue = parsingState.CreateNewVariableBitStringValue(this, m_configurationCell.DigitalDefinitions[digiIdx], buffer, index, tlv.Length);
+
                         digiIdx++;
                         index += tlv.Length;
                         // assign to base class
@@ -436,6 +446,8 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                         // first one voltage, then magnitude
                         phasorValue = parsingState.CreateNewVariablePhasorValue(this, m_configurationCell.PhasorDefinitions[phasorIdx], buffer, index, tlv.Length);//out parsedLength);
                         phasorIdx++;
+
+                        
                         index += tlv.Length;
                         // assign to base class
                         PhasorValues.Add(phasorValue);

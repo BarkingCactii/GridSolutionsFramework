@@ -844,17 +844,28 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                                 configCell.DigitalDefinitions.Add(new DigitalDefinition(configCell, innerNode.Value, 0, 1));
                                 break;
                             }
+                        case "BITSTRING":
+                            {
+                                TimeLengthValue tlv = new TimeLengthValue() { Type = DataType.bitString, Length = -1, MeasurementType = MeasurementType.BitString, Value = (char)0 };
+                                Common.gooseDataConfiguration.Add(tlv);
+
+                                numDataBytes += 2;
+                                configCell.DigitalDefinitions.Add(new BitStringDefinition(configCell, innerNode.Value, 0, 1));
+                                break;
+                            }
                         case "STRING":
                             {
                                 // to be implemented
-                                TimeLengthValue tlv = new TimeLengthValue() { Type = DataType.array, Length = -1, MeasurementType = MeasurementType.Digi, Value = (char)0 };
+//                                TimeLengthValue tlv = new TimeLengthValue() { Type = DataType.array, Length = -1, MeasurementType = MeasurementType.Digi, Value = (char)0 };
+                                TimeLengthValue tlv = new TimeLengthValue() { Type = DataType.bitString, Length = -1, MeasurementType = MeasurementType.Digi, Value = (char)0 };
                                 Common.gooseDataConfiguration.Add(tlv);
 
                                 // can't be determined
-                                DigitalDefinition digital = new DigitalDefinition(configCell, innerNode.Value, 0, 1);
-                                digital.Label = "String";
+                                //DigitalDefinition digital = new DigitalDefinition(configCell, innerNode.Value, 0, 1);
+                                //digital.Label = "String";
 
-                                numDataBytes += 0;
+                                numDataBytes += 2;
+                                configCell.DigitalDefinitions.Add(new DigitalDefinition(configCell, innerNode.Value, 0, 1));
                                 break;
                             }
                         case "BOOL":
@@ -915,6 +926,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
                     PhasorValue.CreateNewVariableValue,
                     FrequencyValue.CreateNewVariableValue,
                     AnalogValue.CreateNewVariableValue,
+                    BitStringValue.CreateNewVariableValue,
                     DigitalValue.CreateNewVariableValue);
             }
 

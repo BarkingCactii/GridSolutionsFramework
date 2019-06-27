@@ -135,5 +135,13 @@ namespace GSF.PhasorProtocols
             get;
         }
 
+        /// <summary>
+        /// Gets reference to <see cref="CreateNewValueFunction{TDefinition,TValue}"/> delegate used to create new <see cref="IDigitalValue"/> objects.
+        /// </summary>
+        CreateNewVariableValueFunction<IDigitalDefinition, IDigitalValue> CreateNewVariableBitStringValue
+        {
+            get;
+        }
+
     }
 }

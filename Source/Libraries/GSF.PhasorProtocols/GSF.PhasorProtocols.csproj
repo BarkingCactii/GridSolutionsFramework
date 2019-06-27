@@ -159,7 +159,9 @@
     <Compile Include="IEC61850_90_5_Goose\DataCell.cs" />
     <Compile Include="IEC61850_90_5_Goose\DataCellCollection.cs" />
     <Compile Include="IEC61850_90_5_Goose\DataFrame.cs" />
+    <Compile Include="IEC61850_90_5_Goose\BitStringDefinition.cs" />
     <Compile Include="IEC61850_90_5_Goose\DigitalDefinition.cs" />
+    <Compile Include="IEC61850_90_5_Goose\BitStringValue.cs" />
     <Compile Include="IEC61850_90_5_Goose\DigitalValue.cs" />
     <Compile Include="IEC61850_90_5_Goose\FrameParser.cs" />
     <Compile Include="IEC61850_90_5_Goose\FrequencyDefinition.cs" />
@@ -347,6 +349,7 @@
   <ItemGroup>
     <Content Include="IEC61850_90_5_Goose\GoPMU.XML">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <SubType>Designer</SubType>
     </Content>
   </ItemGroup>
   <Target Name="AfterBuild">
