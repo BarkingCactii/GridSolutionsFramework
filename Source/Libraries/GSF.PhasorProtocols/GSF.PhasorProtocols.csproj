@@ -17,7 +17,7 @@
     <DebugType>full</DebugType>
     <DefineDebug>true</DefineDebug>
     <DefineTrace>true</DefineTrace>
-    <OutputPath>..\..\..\..\SIEGate-master\Build\Output\Debug\Applications\SIEGate\</OutputPath>
+    <OutputPath>..\..\..\Build\Output\Debug\Libraries\</OutputPath>
     <DocumentationFile>
     </DocumentationFile>
     <RemoveIntegerChecks>true</RemoveIntegerChecks>
@@ -51,10 +51,6 @@
     <DefineConstants>TRACE;MONO</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="GSF.Communication, Version=2.3.119.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\SIEGate-master\Source\Dependencies\GSF\GSF.Communication.dll</HintPath>
-    </Reference>
     <Reference Include="mscorlib" />
     <Reference Include="System" />
     <Reference Include="System.configuration" />
@@ -337,6 +333,10 @@
     <CodeAnalysisDictionary Include="CodeAnalysisDictionary.xml" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\GSF.Communication\GSF.Communication.csproj">
+      <Project>{2b2eb9be-e6a9-406f-bfe6-ff46dd6bd264}</Project>
+      <Name>GSF.Communication</Name>
+    </ProjectReference>
     <ProjectReference Include="..\GSF.Core\GSF.Core.csproj">
       <Project>{ff3fcba6-f01a-4ec2-bc3f-6ba832afcf88}</Project>
       <Name>GSF.Core</Name>
