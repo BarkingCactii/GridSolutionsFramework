@@ -11,6 +11,8 @@
     <AssemblyName>ModbusAdapters</AssemblyName>
     <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -223,6 +225,7 @@
     <EmbeddedResource Include="ModbusConfigs\KelmanTransformerDGA\TransOpto Last Record.json" />
     <EmbeddedResource Include="ModbusConfigs\PQube\Mappings.json" />
     <EmbeddedResource Include="ModbusConfigs\PQube\PQubeScript.py" />
+    <None Include="app.config" />
     <None Include="ModbusConfigs\KelmanTransformerDGA\Analog Input 1 Alarm 1+2+3 Settings.json" />
     <None Include="ModbusConfigs\KelmanTransformerDGA\Analog Input 2 Alarm 1+2+3 Settings.json" />
     <None Include="ModbusConfigs\KelmanTransformerDGA\Analog Input 3 Alarm 1+2+3 Settings.json" />

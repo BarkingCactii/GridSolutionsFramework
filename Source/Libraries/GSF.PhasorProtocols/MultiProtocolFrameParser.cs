@@ -3423,7 +3423,10 @@ namespace GSF.PhasorProtocols
                             commandFrame = new IEC61850_90_5.CommandFrame(m_deviceID, command, 1);
                             break;
                         case PhasorProtocol.IEC61850_90_5_Goose:
-                            commandFrame = new IEC61850_90_5_Goose.CommandFrame(m_deviceID, command, 1);
+                            //commandFrame = new IEC61850_90_5_Goose.CommandFrame(m_deviceID, command, 1);
+                            // don't try and make a connection. This is so data can be streamed, and blocked firewalls don't spam retries
+                            // The backlash is you cannot verify if the IP address is correct.
+                            commandFrame = null;
                             break;
                         case PhasorProtocol.SelFastMessage:
                             // Get defined message period

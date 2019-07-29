@@ -13,6 +13,8 @@
     <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -274,6 +276,7 @@
     <EmbeddedResource Include="Shared\Content\Fonts\glyphicons-halflings-regular.ttf" />
     <EmbeddedResource Include="Shared\Content\Fonts\glyphicons-halflings-regular.woff" />
     <EmbeddedResource Include="Shared\Content\Fonts\glyphicons-halflings-regular.woff2" />
+    <None Include="app.config" />
     <None Include="GSF.Web.nuspec" />
     <None Include="packages.config">
       <SubType>Designer</SubType>

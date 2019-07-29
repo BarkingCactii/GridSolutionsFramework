@@ -102,6 +102,5 @@
     <ClInclude Include="..\..\..\Libraries\TimeSeriesPlatformLibrary\Samples\SubscriberHandler.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <ImportGroup Label="ExtensionTargets">
-  </ImportGroup>
+  <ImportGroup Label="ExtensionTargets" />
 </Project>

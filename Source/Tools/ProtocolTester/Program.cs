@@ -272,6 +272,7 @@ namespace ProtocolTester
                         IDCode = parsedDevice.IDCode
                     });
 
+
                     // Map status flags (SF) from device data cell itself (IDataCell implements IMeasurement
                     // and exposes the status flags as its value)
                     MapMeasurementAttributes(mappedMeasurements, definedDevice.GetSignalReference(SignalKind.Status), parsedDevice.GetStatusFlagsMeasurement());

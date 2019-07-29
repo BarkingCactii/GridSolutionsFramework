@@ -11,6 +11,8 @@
     <RootNamespace>GSF.PhasorProtocols</RootNamespace>
     <AssemblyName>GSF.PhasorProtocols</AssemblyName>
     <TargetFrameworkProfile />
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -18,8 +20,7 @@
     <DefineDebug>true</DefineDebug>
     <DefineTrace>true</DefineTrace>
     <OutputPath>..\..\..\Build\Output\Debug\Libraries\</OutputPath>
-    <DocumentationFile>
-    </DocumentationFile>
+    <DocumentationFile>..\..\..\Build\Output\Debug\Libraries\GSF.PhasorProtocols.xml</DocumentationFile>
     <RemoveIntegerChecks>true</RemoveIntegerChecks>
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <DefineConstants>TRACE;DEBUG</DefineConstants>

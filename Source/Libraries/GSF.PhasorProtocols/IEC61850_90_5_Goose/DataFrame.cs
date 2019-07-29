@@ -720,7 +720,7 @@ namespace GSF.PhasorProtocols.IEC61850_90_5_Goose
         // XML READER
         public int ParseXmlConfig()
         {
-            int numDataBytes = 0;
+            int numDataBytes = 0; //comment
 
             // if we don't set it, it will be null
             m_stationName = m_msvID;
