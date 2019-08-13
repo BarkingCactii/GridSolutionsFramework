@@ -32,7 +32,7 @@
             <CollectionViewSource Source="{Binding Path=TimezoneLookupList}" x:Key="TimezoneLookupList"/>
         </StackPanel.Resources>
 
-        <Grid x:Name="GridDetailView" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="5" DataContext="{Binding Path=CurrentItem, Mode=TwoWay}" DataContextChanged="GridDetailView_DataContextChanged">
+        <Grid x:Name="GridDetailView" HorizontalAlignment="Center"  VerticalAlignment="Top" Margin="0,0,0,0" DataContext="{Binding Path=CurrentItem, Mode=TwoWay}" DataContextChanged="GridDetailView_DataContextChanged">
             <Grid.BindingGroup >
                 <BindingGroup Name="input"/>
             </Grid.BindingGroup>
@@ -144,7 +144,7 @@
 
             <TextBlock Text="Connection String" Grid.Row="6" Grid.Column="0" />
             <StackPanel Orientation="Horizontal" Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="3" Width="Auto" HorizontalAlignment="Stretch">
-                <TextBox  Width="Auto" MinWidth="566" MaxWidth="566" Text="{tsfBinding:Column Path=ConnectionString}" TextWrapping="Wrap"  VerticalScrollBarVisibility="Auto" Height="66" 
+                <TextBox  Width="Auto" MinWidth="566" MaxWidth="566" Text="{tsfBinding:Column Path=ConnectionString}" TextWrapping="Wrap"  VerticalScrollBarVisibility="Auto" Height="50" 
                     IsEnabled="{Binding ElementName=ComboBoxConcentrator, Path=SelectedIndex, Converter={StaticResource IndexToBooleanConverter}}"/>
                 <Button Grid.Row="6" Grid.Column="3" HorizontalAlignment="Right" Command="{Binding Path=DataContext.BuildConnectionStringCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=StackPanel, AncestorLevel=2}}"
                     IsEnabled="{Binding ElementName=ComboBoxConcentrator, Path=SelectedIndex, Converter={StaticResource IndexToBooleanConverter}}" VerticalAlignment="Top" ToolTip="Build connection string" Width="Auto">
@@ -158,7 +158,7 @@
             
             <TextBlock Text="Alternate Command Channel" Grid.Row="7" Grid.Column="0"/>
             <StackPanel Orientation="Horizontal" Grid.Row="7" Grid.Column="1" Grid.ColumnSpan="3" Width="Auto" HorizontalAlignment="Stretch">
-                <TextBox Width="Auto" MinWidth="566" MaxWidth="566"  HorizontalAlignment="Stretch" Text="{tsfBinding:Column Path=AlternateCommandChannel}" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="60"
+                <TextBox Width="Auto" MinWidth="566" MaxWidth="566"  HorizontalAlignment="Stretch" Text="{tsfBinding:Column Path=AlternateCommandChannel}" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="50"
                     IsEnabled="{Binding ElementName=ComboBoxConcentrator, Path=SelectedIndex, Converter={StaticResource IndexToBooleanConverter}}"/>
             <Button Grid.Row="7" Grid.Column="3" HorizontalAlignment="Right" Command="{Binding Path=DataContext.BuildAlternateCommandChannelCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=StackPanel, AncestorLevel=2}}"
                             IsEnabled="{Binding ElementName=ComboBoxConcentrator, Path=SelectedIndex, Converter={StaticResource IndexToBooleanConverter}}" VerticalAlignment="Top" ToolTip="Build alternate command channel" Width="Auto">
