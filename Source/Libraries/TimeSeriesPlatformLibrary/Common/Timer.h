@@ -25,6 +25,8 @@
 #define _TIMER_H
 
 #include "CommonTypes.h"
+#include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/thread/thread.hpp> 
 
 namespace GSF
 {
@@ -34,47 +36,27 @@ namespace GSF
     class Timer // NOLINT
     {
     private:
-        GSF::Thread* m_timerThread;
-        GSF::IOContext m_timerContext;
-        boost::asio::deadline_timer m_timer;
+        SharedPtr<GSF::Thread> m_timerThread;
         int32_t m_interval;
         TimerElapsedCallback m_callback;
         void* m_userData;
         bool m_autoReset;
-        bool m_disposing;
+        volatile bool m_running;
 
         void TimerThread()
         {
-            try
+            m_running = true;
+
+            do
             {
-                // Running context will block while items are queued to execute
-                m_timerContext.run();
+                boost::this_thread::sleep(boost::posix_time::milliseconds(m_interval));
+
+                if (m_running)
+                    m_callback(this, m_userData);
             }
-            catch (...)
-            {
-                return;
-            }
+            while (m_autoReset && m_running);
 
-            if (m_disposing)
-                return;
-
-            // Reset timer thread when context has nothing left to run
-            delete m_timerThread;
-            m_timerThread = nullptr;
-
-            // Restart context in preparation for next run
-            m_timerContext.restart();
-        }
-
-        void TimerElaspsed(const GSF::ErrorCode& error)
-        {
-            if (error)
-                return;
-
-            m_callback(this, m_userData);
-
-            if (m_autoReset)
-                Start();
+            m_running = false;
         }
 
     public:
@@ -82,22 +64,18 @@ namespace GSF
         {
         }
 
-        Timer(const int32_t interval, const TimerElapsedCallback& callback, const bool autoReset = false) :
+        Timer(const int32_t interval, TimerElapsedCallback callback, const bool autoReset = false) :
             m_timerThread(nullptr),
-            m_timer(m_timerContext),
             m_interval(interval),
-            m_callback(callback),
+            m_callback(std::move(callback)),
             m_userData(nullptr),
             m_autoReset(autoReset),
-            m_disposing(false)
+            m_running(false)
         {
         }
 
         ~Timer()
         {
-            m_disposing = true;
-            delete m_timerThread;
-            m_timerThread = nullptr;
             Stop();
         }
 
@@ -108,7 +86,16 @@ namespace GSF
 
         void SetInterval(const int32_t value)
         {
-            m_interval = value;
+            if (value != m_interval)
+            {
+                const bool restart = m_running;
+                Stop();
+
+                m_interval = value;
+
+                if (restart)
+                    Start();
+            }
         }
 
         TimerElapsedCallback GetCallback() const
@@ -118,7 +105,7 @@ namespace GSF
 
         void SetCallback(TimerElapsedCallback value)
         {
-            m_callback = value;
+            m_callback = std::move(value);
         }
 
         const void* GetUserData() const
@@ -146,16 +133,25 @@ namespace GSF
             if (m_callback == nullptr)
                 throw std::invalid_argument("Cannot start timer, no callback function has been defined.");
 
-            m_timer.expires_from_now(boost::posix_time::milliseconds(m_interval));
-            m_timer.async_wait(boost::bind(&Timer::TimerElaspsed, this, boost::asio::placeholders::error));
+            if (m_running)
+                Stop();
 
-            if (m_timerThread == nullptr)
-                m_timerThread = new GSF::Thread(boost::bind(&Timer::TimerThread, this));
+            m_timerThread = NewSharedPtr<GSF::Thread>(boost::bind(&Timer::TimerThread, this));
         }
 
         void Stop()
         {
-            m_timer.cancel();
+            m_running = false;
+
+            if (m_timerThread != nullptr)
+            {
+                m_timerThread->interrupt();
+
+                if (boost::this_thread::get_id() != m_timerThread->get_id())
+                    m_timerThread->join();
+            }
+
+            m_timerThread.reset();
         }
     };
 

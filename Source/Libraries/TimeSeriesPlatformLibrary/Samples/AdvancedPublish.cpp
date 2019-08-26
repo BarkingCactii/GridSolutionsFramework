@@ -23,6 +23,8 @@
 
 // ReSharper disable CppAssignedValueIsNeverUsed
 #include "../Transport/DataPublisher.h"
+#include "GenHistory.h"
+#include "TemporalSubscriber.h"
 #include <iostream>
 
 using namespace std;
@@ -33,29 +35,41 @@ using namespace GSF::TimeSeries::Transport;
 using namespace GSF::FilterExpressions;
 
 DataPublisherPtr Publisher;
+GenHistoryPtr HistoryGenerator;
 TimerPtr PublishTimer;
 vector<DeviceMetadataPtr> DevicesToPublish;
 vector<MeasurementMetadataPtr> MeasurementsToPublish;
 vector<PhasorMetadataPtr> PhasorsToPublish;
+unordered_map<GSF::Guid, TemporalSubscriberPtr> TemporalSubscriptions;
+Mutex TemporalSubscriptionsLock;
+const TemporalSubscriberPtr NullTemporalSubscription = nullptr;
 
-bool RunPublisher(uint16_t port);
-void DisplayClientConnected(DataPublisher* source, const Guid& subscriberID, const string& connectionID);
-void DisplayClientDisconnected(DataPublisher* source, const Guid& subscriberID, const string& connectionID);
+bool RunPublisher(uint16_t port, bool genHistory);
+
+void DisplayClientConnected(DataPublisher* source, const SubscriberConnectionPtr& connection);
+void DisplayClientDisconnected(DataPublisher* source, const SubscriberConnectionPtr& connection);
 void DisplayStatusMessage(DataPublisher* source, const string& message);
 void DisplayErrorMessage(DataPublisher* source, const string& message);
+void HandleProcessingIntervalChangeRequested(DataPublisher* source, const SubscriberConnectionPtr& connection);
+void HandleTemporalSubscriptionRequested(DataPublisher* source, const SubscriberConnectionPtr& connection);
+void HandleTemporalSubscriptionCanceled(DataPublisher* source, const SubscriberConnectionPtr& connection);
+
+bool UpdateTemporalSubscriptionProcessingInterval(const SubscriberConnectionPtr& connection);
+TemporalSubscriberPtr CreateNewTemporalSubscription(const SubscriberConnectionPtr& connection);
+bool RemoveTemporalSubscription(const SubscriberConnectionPtr& connection, bool& completed);
 
 void LoadMetadataToPublish(vector<DeviceMetadataPtr>& deviceMetadata, vector<MeasurementMetadataPtr>& measurementMetadata, vector<PhasorMetadataPtr>& phasorMetadata)
 {
     DeviceMetadataPtr device1Metadata = NewSharedPtr<DeviceMetadata>();
-    const DateTime timestamp = UtcNow();
+    const datetime_t timestamp = UtcNow();
 
     // Add a device
     device1Metadata->Name = "Test PMU";
     device1Metadata->Acronym = ToUpper(Replace(device1Metadata->Name, " ", "", false));
-    device1Metadata->UniqueID = NewGuid();
+    device1Metadata->UniqueID = ParseGuid("933690ab-71e1-4c56-ab54-097f5ed8db34");
     device1Metadata->Longitude = 300;
     device1Metadata->Latitude = 200;
-    device1Metadata->FramesPerSecond = 1;
+    device1Metadata->FramesPerSecond = 30;
     device1Metadata->ProtocolName = "GEP";
     device1Metadata->UpdatedOn = timestamp;
 
@@ -69,7 +83,7 @@ void LoadMetadataToPublish(vector<DeviceMetadataPtr>& deviceMetadata, vector<Mea
     MeasurementMetadataPtr measurement1Metadata = NewSharedPtr<MeasurementMetadata>();
     measurement1Metadata->ID = measurementSource + ToString(runtimeIndex++);
     measurement1Metadata->PointTag = pointTagPrefix + "FREQ";
-    measurement1Metadata->SignalID = NewGuid();
+    measurement1Metadata->SignalID = ParseGuid("6586f230-8e7f-4f0f-9e18-1eefee4b9edd");
     measurement1Metadata->DeviceAcronym = device1Metadata->Acronym;
     measurement1Metadata->Reference.Acronym = device1Metadata->Acronym;
     measurement1Metadata->Reference.Kind = Frequency;
@@ -81,7 +95,7 @@ void LoadMetadataToPublish(vector<DeviceMetadataPtr>& deviceMetadata, vector<Mea
     MeasurementMetadataPtr measurement2Metadata = NewSharedPtr<MeasurementMetadata>();
     measurement2Metadata->ID = measurementSource + ToString(runtimeIndex++);
     measurement2Metadata->PointTag = pointTagPrefix + "DFDT";
-    measurement2Metadata->SignalID = NewGuid();
+    measurement2Metadata->SignalID = ParseGuid("60c97530-2ed2-4abb-a7a2-99e2170479a4");
     measurement2Metadata->DeviceAcronym = device1Metadata->Acronym;
     measurement2Metadata->Reference.Acronym = device1Metadata->Acronym;
     measurement2Metadata->Reference.Kind = DfDt;
@@ -93,7 +107,7 @@ void LoadMetadataToPublish(vector<DeviceMetadataPtr>& deviceMetadata, vector<Mea
     MeasurementMetadataPtr measurement3Metadata = NewSharedPtr<MeasurementMetadata>();
     measurement3Metadata->ID = measurementSource + ToString(runtimeIndex++);
     measurement3Metadata->PointTag = pointTagPrefix + "VPHA";
-    measurement3Metadata->SignalID = NewGuid();
+    measurement3Metadata->SignalID = ParseGuid("aa47a61c-8596-46af-8c28-f9ee774bcf26");
     measurement3Metadata->DeviceAcronym = device1Metadata->Acronym;
     measurement3Metadata->Reference.Acronym = device1Metadata->Acronym;
     measurement3Metadata->Reference.Kind = Angle;
@@ -105,7 +119,7 @@ void LoadMetadataToPublish(vector<DeviceMetadataPtr>& deviceMetadata, vector<Mea
     MeasurementMetadataPtr measurement4Metadata = NewSharedPtr<MeasurementMetadata>();
     measurement4Metadata->ID = measurementSource + ToString(runtimeIndex++);
     measurement4Metadata->PointTag = pointTagPrefix + "VPHM";
-    measurement4Metadata->SignalID = NewGuid();
+    measurement4Metadata->SignalID = ParseGuid("4ab24720-3763-407c-afa0-15f0d69ac897");
     measurement4Metadata->DeviceAcronym = device1Metadata->Acronym;
     measurement4Metadata->Reference.Acronym = device1Metadata->Acronym;
     measurement4Metadata->Reference.Kind = Magnitude;
@@ -134,8 +148,8 @@ void LoadMetadataToPublish(vector<DeviceMetadataPtr>& deviceMetadata, vector<Mea
 //
 // This application accepts the port of the publisher via command line argument,
 // starts listening for subscriber connections, the displays summary information
-// about the measurements it publishes. It provides fourteen measurements, i.e.,
-// PPA:1 through PPA:14
+// about the measurements it publishes. It provides four manually defined
+// measurements, i.e., PPA:1 through PPA:4
 //
 // Measurements are transmitted via the TCP command channel.
 int main(int argc, char* argv[])
@@ -153,9 +167,10 @@ int main(int argc, char* argv[])
 
     // Get hostname and port.
     stringstream(argv[1]) >> port;
+    const bool genHistory = argc > 2 && IsEqual(argv[2], "GenHistory");
 
     // Run the publisher.
-    if (RunPublisher(port))
+    if (RunPublisher(port, genHistory))
     {
         // Wait until the user presses enter before quitting.
         string line;
@@ -165,19 +180,15 @@ int main(int argc, char* argv[])
         PublishTimer->Stop();
     }
 
-    // Disconnect the subscriber to stop background threads.
-    //Subscriber.Disconnect();
-    cout << "Disconnected." << endl;
+    if (genHistory)
+        HistoryGenerator->StopArchive();
+
+    cout << "Publisher stopped." << endl;
 
     return 0;
 }
 
-// The proper procedure when creating and running a subscriber is:
-//   - Create publisher
-//   - Register callbacks
-//   - Start publisher to listen for subscribers
-//   - Publish
-bool RunPublisher(uint16_t port)
+bool RunPublisher(uint16_t port, bool genHistory)
 {
     static float64_t randMax = float64_t(RAND_MAX);
     string errorMessage;
@@ -210,6 +221,12 @@ bool RunPublisher(uint16_t port)
         Publisher->RegisterClientDisconnectedCallback(&DisplayClientDisconnected);
         Publisher->RegisterStatusMessageCallback(&DisplayStatusMessage);
         Publisher->RegisterErrorMessageCallback(&DisplayErrorMessage);
+        Publisher->RegisterProcessingIntervalChangeRequestedCallback(&HandleProcessingIntervalChangeRequested);
+        Publisher->RegisterTemporalSubscriptionRequestedCallback(&HandleTemporalSubscriptionRequested);
+        Publisher->RegisterTemporalSubscriptionCanceledCallback(&HandleTemporalSubscriptionCanceled);
+
+        // Enable temporal subscription support - this allows historical data requests as well as real-time
+        Publisher->SetSupportsTemporalSubscriptions(true);
 
         // Load metadata to be used for publication
         LoadMetadataToPublish(DevicesToPublish, MeasurementsToPublish, PhasorsToPublish);
@@ -226,9 +243,10 @@ bool RunPublisher(uint16_t port)
         // data type reasonable random values every 33 milliseconds
         PublishTimer = NewSharedPtr<Timer>(33, [](Timer*, void*)
         {
-            static uint32_t count = MeasurementsToPublish.size();
+            // If metadata can change, the following integer should not be static:
+            static uint32_t count = ConvertUInt32(MeasurementsToPublish.size());
             const int64_t timestamp = ToTicks(UtcNow());
-            vector<Measurement> measurements;
+            vector<MeasurementPtr> measurements;
 
             measurements.reserve(count);
 
@@ -236,10 +254,10 @@ bool RunPublisher(uint16_t port)
             for (size_t i = 0; i < count; i++)
             {
                 const MeasurementMetadataPtr metadata = MeasurementsToPublish[i];
-                Measurement measurement;
+                MeasurementPtr measurement = NewSharedPtr<Measurement>();
 
-                measurement.SignalID = metadata->SignalID;
-                measurement.Timestamp = timestamp;
+                measurement->SignalID = metadata->SignalID;
+                measurement->Timestamp = timestamp;
 
                 const float64_t randFraction = rand() / randMax;
                 const float64_t sign = randFraction > 0.5 ? 1.0 : -1.0;
@@ -264,7 +282,7 @@ bool RunPublisher(uint16_t port)
                         break;
                 }
 
-                measurement.Value = value;
+                measurement->Value = value;
 
                 measurements.push_back(measurement);
             }
@@ -276,6 +294,12 @@ bool RunPublisher(uint16_t port)
 
         // Start data publication
         PublishTimer->Start();
+
+        if (genHistory)
+        {
+            HistoryGenerator = NewSharedPtr<GenHistory>(port);
+            HistoryGenerator->StartArchive();
+        }            
     }
     else
     {
@@ -285,18 +309,18 @@ bool RunPublisher(uint16_t port)
     return running;
 }
 
-void DisplayClientConnected(DataPublisher* source, const Guid& subscriberID, const string& connectionID)
+void DisplayClientConnected(DataPublisher* source, const SubscriberConnectionPtr& connection)
 {
     cout << ">> New Client Connected:" << endl;
-    cout << "   Subscriber ID: " << ToString(subscriberID) << endl;
-    cout << "   Connection ID: " << connectionID << endl << endl;
+    cout << "   Subscriber ID: " << ToString(connection->GetSubscriberID()) << endl;
+    cout << "   Connection ID: " << ToString(connection->GetConnectionID()) << endl << endl;
 }
 
-void DisplayClientDisconnected(DataPublisher* source, const Guid& subscriberID, const string& connectionID)
+void DisplayClientDisconnected(DataPublisher* source, const SubscriberConnectionPtr& connection)
 {
     cout << ">> Client Disconnected:" << endl;
-    cout << "   Subscriber ID: " << ToString(subscriberID) << endl;
-    cout << "   Connection ID: " << connectionID << endl << endl;
+    cout << "   Subscriber ID: " << ToString(connection->GetSubscriberID()) << endl;
+    cout << "   Connection ID: " << ToString(connection->GetConnectionID()) << endl << endl;
 }
 
 // Callback which is called to display status messages from the subscriber.
@@ -309,4 +333,94 @@ void DisplayStatusMessage(DataPublisher* source, const string& message)
 void DisplayErrorMessage(DataPublisher* source, const string& message)
 {
     cerr << message << endl << endl;
+}
+
+void HandleProcessingIntervalChangeRequested(DataPublisher* source, const SubscriberConnectionPtr& connection)
+{
+    if (UpdateTemporalSubscriptionProcessingInterval(connection))
+        cout << "Client \"" << connection->GetConnectionID() << "\" with subscriber ID " << ToString(connection->GetSubscriberID()) << " has requested to change its temporal processing interval to " << ToString(connection->GetProcessingInterval()) << "ms" << endl << endl;
+}
+
+void HandleTemporalSubscriptionRequested(DataPublisher* source, const SubscriberConnectionPtr& connection)
+{
+    bool completed;
+    
+    cout << "Client \"" << connection->GetConnectionID() << "\" with subscriber ID " << ToString(connection->GetSubscriberID()) << " has requested a temporal subscription starting at " << ToString(connection->GetStartTimeConstraint()) << endl;
+
+    RemoveTemporalSubscription(connection, completed);
+    
+    if (CreateNewTemporalSubscription(connection))
+    {
+        const size_t count = TemporalSubscriptions.size();
+        cout << "Created new temporal subscription - " <<  count << (count == 1 ? " is" : " are") << " now active..." << endl << endl;
+    }
+}
+
+void HandleTemporalSubscriptionCanceled(DataPublisher* source, const SubscriberConnectionPtr& connection)
+{
+    bool completed;
+
+    if (RemoveTemporalSubscription(connection, completed))
+    {
+        const size_t count = TemporalSubscriptions.size();
+        cout << "Client \"" << connection->GetConnectionID() << "\" with subscriber ID " << ToString(connection->GetSubscriberID()) << (completed ? " completed" : " canceled") << " temporal subscription starting at " << ToString(connection->GetStartTimeConstraint()) << endl;
+        cout << "Temporal subscription removed - " << count << (count == 1 ? " is" : " are") << " now active..." << endl << endl;
+    }
+}
+
+bool UpdateTemporalSubscriptionProcessingInterval(const SubscriberConnectionPtr& connection)
+{
+    const GSF::Guid& instanceID = connection->GetInstanceID();
+    TemporalSubscriberPtr temporalSubscription;
+    const int32_t processingInterval = connection->GetProcessingInterval();
+    bool updated = false;
+
+    TemporalSubscriptionsLock.lock();
+
+    if (TryGetValue(TemporalSubscriptions, instanceID, temporalSubscription, NullTemporalSubscription))
+    {
+        temporalSubscription->SetProcessingInterval(processingInterval);
+        updated = true;
+    }
+
+    TemporalSubscriptionsLock.unlock();
+
+    return updated;
+}
+
+TemporalSubscriberPtr CreateNewTemporalSubscription(const SubscriberConnectionPtr& connection)
+{
+    const GSF::Guid& instanceID = connection->GetInstanceID();
+    TemporalSubscriberPtr temporalSubscription;
+
+    TemporalSubscriptionsLock.lock();
+
+    temporalSubscription = NewSharedPtr<TemporalSubscriber>(connection);
+    TemporalSubscriptions.insert(pair<GSF::Guid, TemporalSubscriberPtr>(instanceID, temporalSubscription));
+
+    TemporalSubscriptionsLock.unlock();
+
+    return temporalSubscription;
+}
+
+bool RemoveTemporalSubscription(const SubscriberConnectionPtr& connection, bool& completed)
+{
+    const GSF::Guid& instanceID = connection->GetInstanceID();
+    TemporalSubscriberPtr temporalSubscription;
+    bool removed = false;
+
+    TemporalSubscriptionsLock.lock();
+
+    if (TryGetValue(TemporalSubscriptions, instanceID, temporalSubscription, NullTemporalSubscription))
+    {
+        completed = temporalSubscription->GetIsStopped();
+        temporalSubscription->CompleteTemporalSubscription();
+        TemporalSubscriptions.erase(instanceID);
+        temporalSubscription.reset();
+        removed = true;
+    }
+
+    TemporalSubscriptionsLock.unlock();
+
+    return removed;
 }

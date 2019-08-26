@@ -27,16 +27,6 @@
 //
 //******************************************************************************************************
 
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading;
 using GSF;
 using GSF.Collections;
 using GSF.Configuration;
@@ -51,6 +41,16 @@ using GSF.TimeSeries.Adapters;
 using GSF.TimeSeries.Statistics;
 using GSF.Units;
 using GSF.Units.EE;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Text;
+using System.Threading;
 
 namespace PhasorProtocolAdapters
 {
@@ -412,9 +412,10 @@ namespace PhasorProtocolAdapters
         /// <param name="phasorLabel">The label of the phasor associated with the point.</param>
         /// <param name="signalIndex">Signal index of the point, if any.</param>
         /// <param name="phase">Signal phase of the point, if any.</param>
+        /// <param name="baseKV">Nominal kV of line associated with phasor.</param>
         /// <returns>A new point tag created using the configured point tag name expression.</returns>
         [MethodImpl(MethodImplOptions.Synchronized)]
-        public static string CreatePointTag(string companyAcronym, string deviceAcronym, string vendorAcronym, string signalTypeAcronym, string phasorLabel = null, int signalIndex = -1, char phase = '_')
+        public static string CreatePointTag(string companyAcronym, string deviceAcronym, string vendorAcronym, string signalTypeAcronym, string phasorLabel = null, int signalIndex = -1, char phase = '_', int baseKV = 0)
         {
             // Initialize point tag expression parser
             if ((object)s_pointTagExpressionParser == null)
@@ -455,7 +456,8 @@ namespace PhasorProtocolAdapters
                 { "{VendorAcronym}", vendorAcronym },
                 { "{PhasorLabel}", phasorLabel },
                 { "{SignalIndex}", signalIndex.ToString() },
-                { "{Phase}", phase.ToString() }
+                { "{Phase}", phase.ToString() },
+                { "{BaseKV}", baseKV.ToString() }
             };
 
             // Define signal type field value replacements
@@ -839,30 +841,35 @@ namespace PhasorProtocolAdapters
 
             if (protocols.Columns.Contains("Category"))
             {
+                int protocolCount = protocols.Rows.Count;
+
                 // Make sure new protocol types exist
                 if (Convert.ToInt32(database.Connection.ExecuteScalar("SELECT COUNT(*) FROM Protocol WHERE Acronym=\'IeeeC37_118V2\'")) == 0)
-                    database.Connection.ExecuteNonQuery("INSERT INTO Protocol(Acronym, Name, Type, Category, AssemblyName, TypeName, LoadOrder) VALUES('IeeeC37_118V2', 'IEEE C37.118.2-2011', 'Frame', 'Phasor', 'PhasorProtocolAdapters.dll', 'PhasorProtocolAdapters.PhasorMeasurementMapper', " + (protocols.Rows.Count + 1) + ")");
+                    database.Connection.ExecuteNonQuery("INSERT INTO Protocol(Acronym, Name, Type, Category, AssemblyName, TypeName, LoadOrder) VALUES('IeeeC37_118V2', 'IEEE C37.118.2-2011', 'Frame', 'Phasor', 'PhasorProtocolAdapters.dll', 'PhasorProtocolAdapters.PhasorMeasurementMapper', " + (++protocolCount) + ")");
 
                 if (Convert.ToInt32(database.Connection.ExecuteScalar("SELECT COUNT(*) FROM Protocol WHERE Acronym=\'Iec61850_90_5\'")) == 0)
-                    database.Connection.ExecuteNonQuery("INSERT INTO Protocol(Acronym, Name, Type, Category, AssemblyName, TypeName, LoadOrder) VALUES('Iec61850_90_5', 'IEC 61850-90-5', 'Frame', 'Phasor', 'PhasorProtocolAdapters.dll', 'PhasorProtocolAdapters.PhasorMeasurementMapper', " + (protocols.Rows.Count + 2) + ")");
+                    database.Connection.ExecuteNonQuery("INSERT INTO Protocol(Acronym, Name, Type, Category, AssemblyName, TypeName, LoadOrder) VALUES('Iec61850_90_5', 'IEC 61850-90-5', 'Frame', 'Phasor', 'PhasorProtocolAdapters.dll', 'PhasorProtocolAdapters.PhasorMeasurementMapper', " + (++protocolCount) + ")");
+
+                if (Convert.ToInt32(database.Connection.ExecuteScalar("SELECT COUNT(*) FROM Protocol WHERE Acronym=\'STTP\'")) == 0)
+                    database.Connection.ExecuteNonQuery("INSERT INTO Protocol(Acronym, Name, Type, Category, AssemblyName, TypeName, LoadOrder) VALUES('STTP', 'Streaming Telemetry Transport Protocol', 'Measurement', 'Gateway', 'sttp.gsf.dll', 'sttp.DataSubscriber', 10)");
 
                 if (Convert.ToInt32(database.Connection.ExecuteScalar("SELECT COUNT(*) FROM Protocol WHERE Acronym=\'Iec61850_90_5_Goose\'")) == 0)
                     database.Connection.ExecuteNonQuery("INSERT INTO Protocol(Acronym, Name, Type, Category, AssemblyName, TypeName, LoadOrder) VALUES('Iec61850_90_5_Goose', 'IEC 61850-90-5 Goose', 'Frame', 'Phasor', 'PhasorProtocolAdapters.dll', 'PhasorProtocolAdapters.PhasorMeasurementMapper', " + (protocols.Rows.Count + 2) + ")");
 
                 if (Convert.ToInt32(database.Connection.ExecuteScalar("SELECT COUNT(*) FROM Protocol WHERE Acronym=\'GatewayTransport\'")) == 0)
-                    database.Connection.ExecuteNonQuery("INSERT INTO Protocol(Acronym, Name, Type, Category, AssemblyName, TypeName, LoadOrder) VALUES('GatewayTransport', 'Gateway Transport', 'Measurement', 'Gateway', 'GSF.TimeSeries.dll', 'GSF.TimeSeries.Transport.DataSubscriber', " + (protocols.Rows.Count + 3) + ")");
+                    database.Connection.ExecuteNonQuery("INSERT INTO Protocol(Acronym, Name, Type, Category, AssemblyName, TypeName, LoadOrder) VALUES('GatewayTransport', 'Gateway Exchange Protocol (GEP)', 'Measurement', 'Gateway', 'GSF.TimeSeries.dll', 'GSF.TimeSeries.Transport.DataSubscriber', " + (++protocolCount) + ")");
 
                 if (Convert.ToInt32(database.Connection.ExecuteScalar("SELECT COUNT(*) FROM Protocol WHERE Acronym=\'Modbus\'")) == 0)
-                    database.Connection.ExecuteNonQuery("INSERT INTO Protocol(Acronym, Name, Type, Category, AssemblyName, TypeName, LoadOrder) VALUES('Modbus', 'Modbus Poller', 'Measurement', 'Device', 'ModbusAdapters.dll', 'ModbusAdapters.ModbusPoller', " + (protocols.Rows.Count + 4) + ")");
+                    database.Connection.ExecuteNonQuery("INSERT INTO Protocol(Acronym, Name, Type, Category, AssemblyName, TypeName, LoadOrder) VALUES('Modbus', 'Modbus Poller', 'Measurement', 'Device', 'ModbusAdapters.dll', 'ModbusAdapters.ModbusPoller', " + (++protocolCount) + ")");
 
                 if (Convert.ToInt32(database.Connection.ExecuteScalar("SELECT COUNT(*) FROM Protocol WHERE Acronym=\'DNP3\'")) == 0)
-                    database.Connection.ExecuteNonQuery("INSERT INTO Protocol(Acronym, Name, Type, Category, AssemblyName, TypeName, LoadOrder) VALUES('DNP3', 'DNP3 (Master)', 'Measurement', 'Device', 'Dnp3Adapters.dll', 'Dnp3Adapters.Dnp3InputAdapter', " + (protocols.Rows.Count + 5) + ")");
+                    database.Connection.ExecuteNonQuery("INSERT INTO Protocol(Acronym, Name, Type, Category, AssemblyName, TypeName, LoadOrder) VALUES('DNP3', 'DNP3 (Master)', 'Measurement', 'Device', 'Dnp3Adapters.dll', 'Dnp3Adapters.Dnp3InputAdapter', " + (++protocolCount) + ")");
 
                 if (Convert.ToInt32(database.Connection.ExecuteScalar("SELECT COUNT(*) FROM Protocol WHERE Acronym=\'WAV\'")) == 0)
-                    database.Connection.ExecuteNonQuery("INSERT INTO Protocol(Acronym, Name, Type, Category, AssemblyName, TypeName, LoadOrder) VALUES('WAV', 'Wave Form Input Adapter', 'Frame', 'Audio', 'WavInputAdapter.dll', 'WavInputAdapter.WavInputAdapter', " + (protocols.Rows.Count + 6) + ")");
+                    database.Connection.ExecuteNonQuery("INSERT INTO Protocol(Acronym, Name, Type, Category, AssemblyName, TypeName, LoadOrder) VALUES('WAV', 'Wave Form Input Adapter', 'Frame', 'Audio', 'WavInputAdapter.dll', 'WavInputAdapter.WavInputAdapter', " + (++protocolCount) + ")");
 
                 if (Convert.ToInt32(database.Connection.ExecuteScalar("SELECT COUNT(*) FROM Protocol WHERE Acronym=\'VirtualInput\'")) == 0)
-                    database.Connection.ExecuteNonQuery("INSERT INTO Protocol(Acronym, Name, Type, Category, AssemblyName, TypeName, LoadOrder) VALUES('VirtualInput', 'Virtual Device', 'Frame', 'Virtual', 'TestingAdapters.dll', 'TestingAdapters.VirtualInputAdapter', " + (protocols.Rows.Count + 7) + ")");
+                    database.Connection.ExecuteNonQuery("INSERT INTO Protocol(Acronym, Name, Type, Category, AssemblyName, TypeName, LoadOrder) VALUES('VirtualInput', 'Virtual Device', 'Frame', 'Virtual', 'TestingAdapters.dll', 'TestingAdapters.VirtualInputAdapter', " + (++protocolCount) + ")");
 
                 foreach (DataRow protocol in protocols.Rows)
                 {
@@ -1081,9 +1088,10 @@ namespace PhasorProtocolAdapters
                 string device, vendor, signalAcronym, phasorLabel;
                 char? phase;
                 int? vendorDeviceID;
+                int baseKV;
                 SignalReference signal;
 
-                foreach (DataRow measurement in database.Connection.RetrieveData(database.AdapterType, "SELECT SignalID, CompanyAcronym, DeviceAcronym, VendorDeviceID, SignalReference, SignalAcronym, PhasorLabel, Phase FROM MeasurementDetail WHERE SignalAcronym <> 'STAT' AND Internal <> 0 AND Subscribed = 0").Rows)
+                foreach (DataRow measurement in database.Connection.RetrieveData(database.AdapterType, "SELECT SignalID, CompanyAcronym, DeviceAcronym, VendorDeviceID, SignalReference, SignalAcronym, PhasorLabel, Phase, BaseKV FROM MeasurementDetail WHERE SignalAcronym <> 'STAT' AND Internal <> 0 AND Subscribed = 0").Rows)
                 {
                     company = measurement.ConvertField<string>("CompanyAcronym");
 
@@ -1118,8 +1126,9 @@ namespace PhasorProtocolAdapters
 
                         phasorLabel = measurement.ConvertField<string>("PhasorLabel");
                         phase = measurement.ConvertNullableField<char>("Phase");
+                        baseKV = measurement.ConvertField<int>("BaseKV");
 
-                        database.Connection.ExecuteNonQuery($"UPDATE Measurement SET PointTag = '{CreatePointTag(company, device, vendor, signalAcronym, phasorLabel, signalIndex, phase ?? '_')}' WHERE SignalID = '{database.Guid(measurement, "SignalID")}'");
+                        database.Connection.ExecuteNonQuery($"UPDATE Measurement SET PointTag = '{CreatePointTag(company, device, vendor, signalAcronym, phasorLabel, signalIndex, phase ?? '_', baseKV)}' WHERE SignalID = '{database.Guid(measurement, "SignalID")}'");
                     }
                 }
             }

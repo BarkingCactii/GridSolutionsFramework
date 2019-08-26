@@ -116,7 +116,7 @@ namespace GSF
     void Nullable<T>::NullableValue::checkHasValue() const
     {
         if (!m_hasValue)
-            throw std::exception("Nullable object must have a value");
+            throw std::runtime_error("Nullable object must have a value");
     }
 
     template<class T>
@@ -324,7 +324,7 @@ namespace GSF
         return {};
     }
 
-    inline std::string ToString(const Nullable<DateTime>& value, const char* fmt = "%Y-%m-%d %H:%M:%S%F")
+    inline std::string ToString(const Nullable<datetime_t>& value, const char* fmt = "%Y-%m-%d %H:%M:%S%F")
     {
         if (value.HasValue())
             return ToString(value.GetValueOrDefault(), fmt);

@@ -36,35 +36,57 @@ using namespace GSF::FilterExpressions;
 using namespace GSF::TimeSeries;
 using namespace GSF::TimeSeries::Transport;
 
-struct SubscriberConnectionInfo
+struct UserCommandData
 {
-    const GSF::Guid SubscriberID;
-    const string ConnectionID;
-
-    SubscriberConnectionInfo(const GSF::Guid& subscriberID, string connectionID) :
-        SubscriberID(subscriberID),
-        ConnectionID(std::move(connectionID))
-    {
-    }
+    SubscriberConnection* connection;
+    uint32_t command;
+    vector<uint8_t> data;
 };
 
 DataPublisher::DataPublisher(const TcpEndPoint& endpoint) :
     m_nodeID(NewGuid()),
     m_securityMode(SecurityMode::None),
-    m_allowMetadataRefresh(true),
-    m_allowNaNValueFilter(true),
-    m_forceNaNValueFilter(false),
+    m_maximumAllowedConnections(-1),
+    m_isMetadataRefreshAllowed(true),
+    m_isNaNValueFilterAllowed(true),
+    m_isNaNValueFilterForced(false),
+    m_supportsTemporalSubscriptions(false),
+    m_useBaseTimeOffsets(true),
     m_cipherKeyRotationPeriod(60000),
     m_userData(nullptr),
     m_disposing(false),
     m_clientAcceptor(m_commandChannelService, endpoint)
 {
-    m_callbackThread = Thread(bind(&DataPublisher::RunCallbackThread, this));
-    m_commandChannelAcceptThread = Thread(bind(&DataPublisher::RunCommandChannelAcceptThread, this));
+    // Run call-back thread
+    Thread([&,this]
+    {
+        while (true)
+        {
+            m_callbackQueue.WaitForData();
+
+            if (m_disposing)
+                break;
+
+            const CallbackDispatcher dispatcher = m_callbackQueue.Dequeue();
+            dispatcher.Function(dispatcher.Source, *dispatcher.Data);
+        }
+    });
+
+    // Run command channel accept thread
+    Thread([&,this]
+    {
+        StartAccept();
+        m_commandChannelService.run();
+    });
 }
 
 DataPublisher::DataPublisher(uint16_t port, bool ipV6) :
     DataPublisher(TcpEndPoint(ipV6 ? tcp::v6() : tcp::v4(), port))
+{
+}
+
+DataPublisher::DataPublisher(const string& networkInterface, uint16_t port) :
+    DataPublisher(TcpEndPoint(address::from_string(networkInterface), port))
 {
 }
 
@@ -80,29 +102,9 @@ DataPublisher::CallbackDispatcher::CallbackDispatcher() :
 {
 }
 
-void DataPublisher::RunCallbackThread()
-{
-    while (true)
-    {
-        m_callbackQueue.WaitForData();
-
-        if (m_disposing)
-            break;
-
-        const CallbackDispatcher dispatcher = m_callbackQueue.Dequeue();
-        dispatcher.Function(dispatcher.Source, *dispatcher.Data);
-    }
-}
-
-void DataPublisher::RunCommandChannelAcceptThread()
-{
-    StartAccept();
-    m_commandChannelService.run();
-}
-
 void DataPublisher::StartAccept()
 {
-    const SubscriberConnectionPtr connection = NewSharedPtr<SubscriberConnection, DataPublisherPtr, IOContext&, IOContext&>(shared_from_this(), m_commandChannelService, m_dataChannelService);
+    const SubscriberConnectionPtr connection = NewSharedPtr<SubscriberConnection, DataPublisherPtr, IOContext&>(shared_from_this(), m_commandChannelService);
     m_clientAcceptor.async_accept(connection->CommandChannelSocket(), boost::bind(&DataPublisher::AcceptConnection, this, connection, boost::asio::placeholders::error));
 }
 
@@ -110,26 +112,45 @@ void DataPublisher::AcceptConnection(const SubscriberConnectionPtr& connection, 
 {
     if (!error)
     {
-        // TODO: For secured connections, validate certificate and IP information here to assign subscriberID
-        m_subscriberConnectionsLock.lock();
+        WriterLock writeLock(m_subscriberConnectionsLock);
+        const bool connectionAccepted = m_maximumAllowedConnections == -1 || static_cast<int32_t>(m_subscriberConnections.size()) < m_maximumAllowedConnections;
         m_subscriberConnections.insert(connection);
-        m_subscriberConnectionsLock.unlock();
 
-        connection->Start();
-        DispatchClientConnected(connection->GetSubscriberID(), connection->GetConnectionID());
+        // TODO: For secured connections, validate certificate and IP information here to assign subscriberID
+        connection->Start(connectionAccepted);
+
+        if (connectionAccepted)
+        {
+            DispatchClientConnected(connection.get());
+        }
+        else
+        {
+            DispatchErrorMessage("Subscriber connection refused: connection would exceed " + ToString(m_maximumAllowedConnections) + " maximum allowed connections.");
+            
+            Thread([connection]
+            {
+                boost::this_thread::sleep(boost::posix_time::milliseconds(1500));
+                connection->SendResponse(ServerResponse::Failed, ServerCommand::Subscribe, "Connection refused: too many active connections.");
+                boost::this_thread::sleep(boost::posix_time::milliseconds(500));
+                connection->Stop();
+            });
+        }
     }
 
     StartAccept();
 }
 
+void DataPublisher::ConnectionTerminated(const SubscriberConnectionPtr& connection)
+{
+    DispatchClientDisconnected(connection.get());
+}
+
 void DataPublisher::RemoveConnection(const SubscriberConnectionPtr& connection)
 {
-    m_subscriberConnectionsLock.lock();
+    m_routingTables.RemoveRoutes(connection);
 
-    if (m_subscriberConnections.erase(connection))
-        DispatchClientDisconnected(connection->GetSubscriberID(), connection->GetConnectionID());
-
-    m_subscriberConnectionsLock.unlock();
+    WriterLock writeLock(m_subscriberConnectionsLock);
+    m_subscriberConnections.erase(connection);
 }
 
 void DataPublisher::Dispatch(const DispatcherFunction& function)
@@ -159,26 +180,52 @@ void DataPublisher::Dispatch(const DispatcherFunction& function, const uint8_t* 
 
 void DataPublisher::DispatchStatusMessage(const string& message)
 {
-    const uint32_t messageSize = (message.size() + 1) * sizeof(char);
+    const uint32_t messageSize = ConvertUInt32((message.size() + 1) * sizeof(char));
     Dispatch(&StatusMessageDispatcher, reinterpret_cast<const uint8_t*>(message.c_str()), 0, messageSize);
 }
 
 void DataPublisher::DispatchErrorMessage(const string& message)
 {
-    const uint32_t messageSize = (message.size() + 1) * sizeof(char);
+    const uint32_t messageSize = ConvertUInt32((message.size() + 1) * sizeof(char));
     Dispatch(&ErrorMessageDispatcher, reinterpret_cast<const uint8_t*>(message.c_str()), 0, messageSize);
 }
 
-void DataPublisher::DispatchClientConnected(const GSF::Guid& subscriberID, const string& connectionID)
+void DataPublisher::DispatchClientConnected(SubscriberConnection* connection)
 {
-    SubscriberConnectionInfo* data = new SubscriberConnectionInfo(subscriberID, connectionID);
-    Dispatch(&ClientConnectedDispatcher, reinterpret_cast<uint8_t*>(&data), 0, sizeof(SubscriberConnectionInfo**));
+    Dispatch(&ClientConnectedDispatcher, reinterpret_cast<uint8_t*>(&connection), 0, sizeof(SubscriberConnection**));
 }
 
-void DataPublisher::DispatchClientDisconnected(const GSF::Guid& subscriberID, const std::string& connectionID)
+void DataPublisher::DispatchClientDisconnected(SubscriberConnection* connection)
 {
-    SubscriberConnectionInfo* data = new SubscriberConnectionInfo(subscriberID, connectionID);
-    Dispatch(&ClientDisconnectedDispatcher, reinterpret_cast<uint8_t*>(&data), 0, sizeof(SubscriberConnectionInfo**));
+    Dispatch(&ClientDisconnectedDispatcher, reinterpret_cast<uint8_t*>(&connection), 0, sizeof(SubscriberConnection**));
+}
+
+void DataPublisher::DispatchProcessingIntervalChangeRequested(SubscriberConnection* connection)
+{
+    Dispatch(&ProcessingIntervalChangeRequestedDispatcher, reinterpret_cast<uint8_t*>(&connection), 0, sizeof(SubscriberConnection**));
+}
+
+void DataPublisher::DispatchTemporalSubscriptionRequested(SubscriberConnection* connection)
+{
+    Dispatch(&TemporalSubscriptionRequestedDispatcher, reinterpret_cast<uint8_t*>(&connection), 0, sizeof(SubscriberConnection**));
+}
+
+void DataPublisher::DispatchTemporalSubscriptionCanceled(SubscriberConnection* connection)
+{
+    Dispatch(&TemporalSubscriptionCanceledDispatcher, reinterpret_cast<uint8_t*>(&connection), 0, sizeof(SubscriberConnection**));
+}
+
+void DataPublisher::DispatchUserCommand(SubscriberConnection* connection, uint32_t command, const uint8_t* data, uint32_t length)
+{
+    // ReSharper disable once CppNonReclaimedResourceAcquisition
+    UserCommandData* userCommandData = new UserCommandData();
+    userCommandData->connection = connection;
+    userCommandData->command = command;
+
+    for (size_t i = 0; i < length; i++)
+        userCommandData->data.push_back(data[i]);
+
+    Dispatch(&UserCommandDispatcher, reinterpret_cast<uint8_t*>(&userCommandData), 0, sizeof(UserCommandData**));
 }
 
 // Dispatcher function for status messages. Decodes the message and provides it to the user via the status message callback.
@@ -207,32 +254,84 @@ void DataPublisher::ErrorMessageDispatcher(DataPublisher* source, const vector<u
 
 void DataPublisher::ClientConnectedDispatcher(DataPublisher* source, const vector<uint8_t>& buffer)
 {
-    SubscriberConnectionInfo* data = *reinterpret_cast<SubscriberConnectionInfo**>(const_cast<uint8_t*>(&buffer[0]));
+    SubscriberConnection* connection = *reinterpret_cast<SubscriberConnection**>(const_cast<uint8_t*>(&buffer[0]));
 
     if (source != nullptr)
     {
         const SubscriberConnectionCallback clientConnectedCallback = source->m_clientConnectedCallback;
 
         if (clientConnectedCallback != nullptr)
-            clientConnectedCallback(source, data->SubscriberID, data->ConnectionID);
+            clientConnectedCallback(source, connection->GetReference());
     }
-
-    delete data;
 }
 
 void DataPublisher::ClientDisconnectedDispatcher(DataPublisher* source, const std::vector<uint8_t>& buffer)
 {
-    SubscriberConnectionInfo* data = *reinterpret_cast<SubscriberConnectionInfo**>(const_cast<uint8_t*>(&buffer[0]));
+    SubscriberConnection* connection = *reinterpret_cast<SubscriberConnection**>(const_cast<uint8_t*>(&buffer[0]));
 
     if (source != nullptr)
     {
         const SubscriberConnectionCallback clientDisconnectedCallback = source->m_clientDisconnectedCallback;
 
         if (clientDisconnectedCallback != nullptr)
-            clientDisconnectedCallback(source, data->SubscriberID, data->ConnectionID);
+            clientDisconnectedCallback(source, connection->GetReference());
+
+        source->RemoveConnection(connection->GetReference());
+    }
+}
+
+void DataPublisher::ProcessingIntervalChangeRequestedDispatcher(DataPublisher* source, const std::vector<uint8_t>& buffer)
+{
+    SubscriberConnection* connection = *reinterpret_cast<SubscriberConnection**>(const_cast<uint8_t*>(&buffer[0]));
+
+    if (source != nullptr)
+    {
+        const SubscriberConnectionCallback temporalProcessingIntervalChangeRequestedCallback = source->m_processingIntervalChangeRequestedCallback;
+
+        if (temporalProcessingIntervalChangeRequestedCallback != nullptr)
+            temporalProcessingIntervalChangeRequestedCallback(source, connection->GetReference());
+    }
+}
+
+void DataPublisher::TemporalSubscriptionRequestedDispatcher(DataPublisher* source, const std::vector<uint8_t>& buffer)
+{
+    SubscriberConnection* connection = *reinterpret_cast<SubscriberConnection**>(const_cast<uint8_t*>(&buffer[0]));
+
+    if (source != nullptr)
+    {
+        const SubscriberConnectionCallback temporalSubscriptionRequestedCallback = source->m_temporalSubscriptionRequestedCallback;
+
+        if (temporalSubscriptionRequestedCallback != nullptr)
+            temporalSubscriptionRequestedCallback(source, connection->GetReference());
+    }
+}
+
+void DataPublisher::TemporalSubscriptionCanceledDispatcher(DataPublisher* source, const std::vector<uint8_t>& buffer)
+{
+    SubscriberConnection* connection = *reinterpret_cast<SubscriberConnection**>(const_cast<uint8_t*>(&buffer[0]));
+
+    if (source != nullptr)
+    {
+        const SubscriberConnectionCallback temporalSubscriptionCanceledCallback = source->m_temporalSubscriptionCanceledCallback;
+
+        if (temporalSubscriptionCanceledCallback != nullptr)
+            temporalSubscriptionCanceledCallback(source, connection->GetReference());
+    }
+}
+
+void DataPublisher::UserCommandDispatcher(DataPublisher* source, const std::vector<uint8_t>& buffer)
+{
+    UserCommandData* userCommandData = *reinterpret_cast<UserCommandData**>(const_cast<uint8_t*>(&buffer[0]));
+
+    if (source != nullptr && userCommandData != nullptr)
+    {
+        const UserCommandCallback userCommandCallback = source->m_userCommandCallback;
+
+        if (userCommandCallback != nullptr)
+            userCommandCallback(source, userCommandData->connection->GetReference(), userCommandData->command, userCommandData->data);
     }
 
-    delete data;
+    delete userCommandData;
 }
 
 int32_t DataPublisher::GetColumnIndex(const GSF::Data::DataTablePtr& table, const std::string& columnName)
@@ -291,7 +390,7 @@ void DataPublisher::DefineMetadata(const vector<DeviceMetadataPtr>& deviceMetada
 
             row->SetGuidValue(nodeID, m_nodeID);
             row->SetGuidValue(uniqueID, device->UniqueID);
-            row->SetBooleanValue(isConcentrator, device->ParentAcronym.empty());
+            row->SetBooleanValue(isConcentrator, false);
             row->SetStringValue(acronym, device->Acronym);
             row->SetStringValue(name, device->Name);
             row->SetInt32Value(accessID, device->AccessID);
@@ -329,7 +428,7 @@ void DataPublisher::DefineMetadata(const vector<DeviceMetadataPtr>& deviceMetada
 
             DataRowPtr row = phasorDetail->CreateRow();
 
-            row->SetInt32Value(id, static_cast<int32_t>(i));
+            row->SetInt32Value(id, ConvertInt32(i));
             row->SetStringValue(deviceAcronym, phasor->DeviceAcronym);
             row->SetStringValue(label, phasor->Label);
             row->SetStringValue(type, phasor->Type);
@@ -627,6 +726,12 @@ void DataPublisher::DefineMetadata(const DataSetPtr& metadata)
     }
 
     m_filteringMetadata.swap(filteringMetadata);
+
+    // Notify all subscribers that the configuration metadata has changed
+    ReaderLock readLock(m_subscriberConnectionsLock);
+
+    for (const auto& connection : m_subscriberConnections)
+        connection->SendResponse(ServerResponse::ConfigurationChanged, ServerCommand::Subscribe);
 }
 
 const DataSetPtr& DataPublisher::GetMetadata() const
@@ -683,14 +788,19 @@ vector<MeasurementMetadataPtr> DataPublisher::FilterMetadata(const string& filte
 
 void DataPublisher::PublishMeasurements(const vector<Measurement>& measurements)
 {
-    for (const auto& connection : m_subscriberConnections)
-        connection->PublishMeasurements(measurements);
+    vector<MeasurementPtr> measurementPtrs;
+
+    measurementPtrs.reserve(measurements.size());
+
+    for (const auto& measurement : measurements)
+        measurementPtrs.push_back(ToPtr(measurement));
+
+    PublishMeasurements(measurementPtrs);
 }
 
 void DataPublisher::PublishMeasurements(const vector<MeasurementPtr>& measurements)
 {
-    for (const auto& connection : m_subscriberConnections)
-        connection->PublishMeasurements(measurements);
+    m_routingTables.PublishMeasurements(measurements);
 }
 
 const GSF::Guid& DataPublisher::GetNodeID() const
@@ -698,9 +808,9 @@ const GSF::Guid& DataPublisher::GetNodeID() const
     return m_nodeID;
 }
 
-void DataPublisher::SetNodeID(const GSF::Guid& nodeID)
+void DataPublisher::SetNodeID(const GSF::Guid& value)
 {
-    m_nodeID = nodeID;
+    m_nodeID = value;
 }
 
 SecurityMode DataPublisher::GetSecurityMode() const
@@ -708,39 +818,59 @@ SecurityMode DataPublisher::GetSecurityMode() const
     return m_securityMode;
 }
 
-void DataPublisher::SetSecurityMode(SecurityMode securityMode)
+void DataPublisher::SetSecurityMode(SecurityMode value)
 {
-    m_securityMode = securityMode;
+    m_securityMode = value;
 }
 
-bool DataPublisher::IsMetadataRefreshAllowed() const
+int32_t DataPublisher::GetMaximumAllowedConnections() const
 {
-    return m_allowMetadataRefresh;
+    return m_maximumAllowedConnections;
 }
 
-void DataPublisher::SetMetadataRefreshAllowed(bool allowed)
+void DataPublisher::SetMaximumAllowedConnections(int32_t value)
 {
-    m_allowMetadataRefresh = allowed;
+    m_maximumAllowedConnections = value;
 }
 
-bool DataPublisher::IsNaNValueFilterAllowed() const
+bool DataPublisher::GetIsMetadataRefreshAllowed() const
 {
-    return m_allowNaNValueFilter;
+    return m_isMetadataRefreshAllowed;
 }
 
-void DataPublisher::SetNaNValueFilterAllowed(bool allowed)
+void DataPublisher::SetIsMetadataRefreshAllowed(bool value)
 {
-    m_allowNaNValueFilter = allowed;
+    m_isMetadataRefreshAllowed = value;
 }
 
-bool DataPublisher::IsNaNValueFilterForced() const
+bool DataPublisher::GetIsNaNValueFilterAllowed() const
 {
-    return m_forceNaNValueFilter;
+    return m_isNaNValueFilterAllowed;
 }
 
-void DataPublisher::SetNaNValueFilterForced(bool forced)
+void DataPublisher::SetNaNValueFilterAllowed(bool value)
 {
-    m_forceNaNValueFilter = forced;
+    m_isNaNValueFilterAllowed = value;
+}
+
+bool DataPublisher::GetIsNaNValueFilterForced() const
+{
+    return m_isNaNValueFilterForced;
+}
+
+void DataPublisher::SetIsNaNValueFilterForced(bool value)
+{
+    m_isNaNValueFilterForced = value;
+}
+
+bool DataPublisher::GetSupportsTemporalSubscriptions() const
+{
+    return m_supportsTemporalSubscriptions;
+}
+
+void DataPublisher::SetSupportsTemporalSubscriptions(bool value)
+{
+    m_supportsTemporalSubscriptions = value;
 }
 
 uint32_t DataPublisher::GetCipherKeyRotationPeriod() const
@@ -748,9 +878,19 @@ uint32_t DataPublisher::GetCipherKeyRotationPeriod() const
     return m_cipherKeyRotationPeriod;
 }
 
-void DataPublisher::SetCipherKeyRotationPeriod(uint32_t period)
+void DataPublisher::SetCipherKeyRotationPeriod(uint32_t value)
 {
-    m_cipherKeyRotationPeriod = period;
+    m_cipherKeyRotationPeriod = value;
+}
+
+bool DataPublisher::GetUseBaseTimeOffsets() const
+{
+    return m_useBaseTimeOffsets;
+}
+
+void DataPublisher::SetUseBaseTimeOffsets(bool value)
+{
+    m_useBaseTimeOffsets = value;
 }
 
 void* DataPublisher::GetUserData() const
@@ -765,42 +905,36 @@ void DataPublisher::SetUserData(void* userData)
 
 uint64_t DataPublisher::GetTotalCommandChannelBytesSent()
 {
-    uint64_t totalCommandChannelBytesSent = 0L;
+    uint64_t totalCommandChannelBytesSent = 0LL;
 
-    m_subscriberConnectionsLock.lock();
+    ReaderLock readLock(m_subscriberConnectionsLock);
 
     for (const auto& connection : m_subscriberConnections)
         totalCommandChannelBytesSent += connection->GetTotalCommandChannelBytesSent();
-
-    m_subscriberConnectionsLock.unlock();
 
     return totalCommandChannelBytesSent;
 }
 
 uint64_t DataPublisher::GetTotalDataChannelBytesSent()
 {
-    uint64_t totalDataChannelBytesSent = 0L;
+    uint64_t totalDataChannelBytesSent = 0LL;
 
-    m_subscriberConnectionsLock.lock();
+    ReaderLock readLock(m_subscriberConnectionsLock);
 
     for (const auto& connection : m_subscriberConnections)
         totalDataChannelBytesSent += connection->GetTotalDataChannelBytesSent();
-
-    m_subscriberConnectionsLock.unlock();
 
     return totalDataChannelBytesSent;
 }
 
 uint64_t DataPublisher::GetTotalMeasurementsSent()
 {
-    uint64_t totalMeasurementsSent = 0L;
+    uint64_t totalMeasurementsSent = 0LL;
 
-    m_subscriberConnectionsLock.lock();
+    ReaderLock readLock(m_subscriberConnectionsLock);
 
     for (const auto& connection : m_subscriberConnections)
         totalMeasurementsSent += connection->GetTotalMeasurementsSent();
-
-    m_subscriberConnectionsLock.unlock();
 
     return totalMeasurementsSent;
 }
@@ -823,4 +957,32 @@ void DataPublisher::RegisterClientConnectedCallback(const SubscriberConnectionCa
 void DataPublisher::RegisterClientDisconnectedCallback(const SubscriberConnectionCallback& clientDisconnectedCallback)
 {
     m_clientDisconnectedCallback = clientDisconnectedCallback;
+}
+
+void DataPublisher::RegisterProcessingIntervalChangeRequestedCallback(const SubscriberConnectionCallback& processingIntervalChangeRequestedCallback)
+{
+    m_processingIntervalChangeRequestedCallback = processingIntervalChangeRequestedCallback;
+}
+
+void DataPublisher::RegisterTemporalSubscriptionRequestedCallback(const SubscriberConnectionCallback& temporalSubscriptionRequestedCallback)
+{
+    m_temporalSubscriptionRequestedCallback = temporalSubscriptionRequestedCallback;
+}
+
+void DataPublisher::RegisterTemporalSubscriptionCanceledCallback(const SubscriberConnectionCallback& temporalSubscriptionCanceledCallback)
+{
+    m_temporalSubscriptionCanceledCallback = temporalSubscriptionCanceledCallback;
+}
+
+void DataPublisher::RegisterUserCommandCallback(const UserCommandCallback& handleUserCommandCallback)
+{
+    m_userCommandCallback = handleUserCommandCallback;
+}
+
+void DataPublisher::IterateSubscriberConnections(const SubscriberConnectionIteratorHandlerFunction& iteratorHandler, void* userData)
+{
+    ReaderLock readLock(m_subscriberConnectionsLock);
+
+    for (const auto& connection : m_subscriberConnections)
+        iteratorHandler(connection, userData);
 }

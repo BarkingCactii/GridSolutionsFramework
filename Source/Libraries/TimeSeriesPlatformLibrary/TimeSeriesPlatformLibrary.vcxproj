@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Transport\TSSCEncoder.cpp" />
     <ClInclude Include="Common\CommonTypes.h" />
     <ClCompile Include="Common\CommonTypes.cpp" />
     <ClInclude Include="Common\Convert.h" />
@@ -364,22 +365,26 @@
     <ClInclude Include="Transport\Constants.h" />
     <ClInclude Include="Transport\DataPublisher.h" />
     <ClInclude Include="Transport\DataSubscriber.h" />
+    <ClCompile Include="Transport\Constants.cpp" />
     <ClCompile Include="Transport\DataPublisher.cpp" />
     <ClCompile Include="Transport\DataSubscriber.cpp" />
     <ClInclude Include="Transport\MetadataSchema.h" />
     <ClInclude Include="Transport\PublisherInstance.h" />
+    <ClInclude Include="Transport\RoutingTables.h" />
     <ClInclude Include="Transport\SignalIndexCache.h" />
     <ClCompile Include="Transport\MetadataSchema.cpp" />
     <ClCompile Include="Transport\PublisherInstance.cpp" />
+    <ClCompile Include="Transport\RoutingTables.cpp" />
     <ClCompile Include="Transport\SignalIndexCache.cpp" />
     <ClInclude Include="Transport\SubscriberConnection.h" />
     <ClInclude Include="Transport\SubscriberInstance.h" />
     <ClCompile Include="Transport\SubscriberConnection.cpp" />
     <ClCompile Include="Transport\SubscriberInstance.cpp" />
-    <ClInclude Include="Transport\TSSCMeasurementParser.h" />
-    <ClCompile Include="Transport\TSSCMeasurementParser.cpp" />
+    <ClInclude Include="Transport\TSSCDecoder.h" />
+    <ClCompile Include="Transport\TSSCDecoder.cpp" />
     <ClInclude Include="Transport\TransportTypes.h" />
     <ClCompile Include="Transport\TransportTypes.cpp" />
+    <ClInclude Include="Transport\TSSCEncoder.h" />
     <ClInclude Include="Transport\Version.h" />
   </ItemGroup>
   <ItemGroup>
@@ -510,7 +515,7 @@
       <PreprocessorDefinitions>_WIN32_WINNT=0x0601;BOOST_CONFIG_SUPPRESS_OUTDATED_MESSAGE;BOOST_ASIO_ENABLE_CANCELIO;ANTLR4CPP_STATIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
-      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -535,7 +540,7 @@
       <PreprocessorDefinitions>_WIN32_WINNT=0x0601;BOOST_CONFIG_SUPPRESS_OUTDATED_MESSAGE;ANTLR4CPP_STATIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
-      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>

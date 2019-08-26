@@ -59,7 +59,7 @@ static GSF::Guid ParseGuidLiteral(string guidLiteral)
     return ParseGuid(guidLiteral.c_str());
 }
 
-static DateTime ParseDateTimeLiteral(string time)
+static datetime_t ParseDateTimeLiteral(string time)
 {
     // Remove any surrounding '#' symbols from date/time, ANTLR grammar already
     // ensures date/time starting with '#' symbol will also end with one
@@ -697,12 +697,12 @@ void FilterExpressionParser::exitPredicateExpression(FilterExpressionSyntaxParse
 
         ExpressionCollectionPtr arguments = NewSharedPtr<ExpressionCollection>();
         const auto expressionList = context->expressionList();
-        const int32_t argumentCount = expressionList->expression().size();
+        const size_t argumentCount = expressionList->expression().size();
 
         if (argumentCount < 1)
             throw FilterExpressionParserException("Not enough expressions found for \"IN\" operation");
 
-        for (int32_t i = 0; i < argumentCount; i++)
+        for (size_t i = 0; i < argumentCount; i++)
         {
             ExpressionPtr argument;
 

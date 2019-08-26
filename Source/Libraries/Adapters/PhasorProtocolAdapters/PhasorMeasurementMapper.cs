@@ -852,6 +852,12 @@ namespace PhasorProtocolAdapters
                                 StatisticsEngine.Unregister(device);
                             }
                         }
+
+                        if ((object)m_missingDataMonitor != null)
+                        {
+                            m_missingDataMonitor.Dispose();
+                            m_missingDataMonitor = null;
+                        }
                     }
                 }
                 finally
@@ -1052,7 +1058,7 @@ namespace PhasorProtocolAdapters
                 m_lagTime = 10.0D;
 
             if (!(settings.TryGetValue("leadTime", out setting) && double.TryParse(setting, out m_leadTime)))
-                m_leadTime = 3.0D;
+                m_leadTime = 5.0D;
 
             if (!(settings.TryGetValue("timeResolution", out setting) && long.TryParse(setting, out m_timeResolution)))
                 m_timeResolution = 10000L;
@@ -1249,12 +1255,9 @@ namespace PhasorProtocolAdapters
 
             Dictionary<string, MeasurementKey> definedMeasurements = new Dictionary<string, MeasurementKey>();
 
-            var rows =  DataSourceLookups.GetLookupCache(DataSource).ActiveMeasurements.LookupByDeviceID(SharedMappingID);
             foreach (DataRow row in DataSourceLookups.GetLookupCache(DataSource).ActiveMeasurements.LookupByDeviceID(SharedMappingID))
             {
                 signalReference = row["SignalReference"].ToString();
-                if (signalReference.Contains("ALOG"))
-                    Console.WriteLine("breakpoint");
                 signalType = row["SignalType"].ToString();
 
                 // Although statistics may be associated with device, it will not be this adapter producing them...
@@ -1677,16 +1680,17 @@ namespace PhasorProtocolAdapters
 
             // Get adjusted timestamp of this frame
             timestamp = frame.Timestamp;
+            timestampIsValid = timestamp.UtcTimeIsValid(m_lagTime, m_leadTime);
 
             // Track latest reporting time for mapper
-            if (timestamp > m_lastReportTime.Value)
+            if (timestamp > m_lastReportTime && timestampIsValid)
                 m_lastReportTime = timestamp;
             else
                 m_outOfOrderFrames++;
 
             // Track latency statistics against system time - in order for these statistics
             // to be useful, the local clock must be fairly accurate
-            long latency = frame.CreatedTimestamp.Value - timestamp;
+            long latency = frame.CreatedTimestamp - timestamp;
 
             // Throw out latencies that exceed one hour as invalid
             if (Math.Abs(latency) <= Time.SecondsPerHour * Ticks.PerSecond)
@@ -1721,13 +1725,13 @@ namespace PhasorProtocolAdapters
                     // Lookup device by its label (if needed), then by its ID code
                     if (((object)m_labelDefinedDevices != null &&
                         m_labelDefinedDevices.TryGetValue(parsedDevice.StationName.ToNonNullString(), out statisticsHelper)) ||
-                        //statisticsHelper != null)
+
                         m_definedDevices.TryGetValue(parsedDevice.IDCode, out statisticsHelper))
                     {
                         definedDevice = statisticsHelper.Device;
 
                         // Track latest reporting time for this device
-                        if (timestamp > definedDevice.LastReportTime.Value)
+                        if (timestamp > definedDevice.LastReportTime && timestampIsValid)
                             definedDevice.LastReportTime = timestamp;
 
                         // Track quality statistics for this device
@@ -2277,7 +2281,7 @@ namespace PhasorProtocolAdapters
             Exception ex = e.Argument1;
 
             if (EnableConnectionErrors)
-                OnProcessException(MessageLevel.Info, new InvalidOperationException($"Connection attempt failed for {ConnectionInfo}: {ex.Message}", ex));
+                OnProcessException(MessageLevel.Info, new ConnectionException($"Connection attempt failed for {ConnectionInfo}: {ex.Message}", ex));
 
             // So long as user hasn't requested to stop, keep trying connection
             if (Enabled)
@@ -2286,7 +2290,12 @@ namespace PhasorProtocolAdapters
 
         private void m_frameParser_ParsingException(object sender, EventArgs<Exception> e)
         {
-            OnProcessException(MessageLevel.Info, e.Argument, "Frame Parsing Exception");
+            Exception ex = e.Argument;
+
+            if (ex is ConnectionException && !EnableConnectionErrors)
+                return;
+
+            OnProcessException(MessageLevel.Info, ex, "Frame Parsing Exception");
         }
 
         private void m_frameParser_ExceededParsingExceptionThreshold(object sender, EventArgs e)

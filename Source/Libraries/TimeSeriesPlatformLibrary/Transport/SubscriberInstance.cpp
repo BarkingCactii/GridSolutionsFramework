@@ -48,7 +48,8 @@ SubscriberInstance::SubscriberInstance() :
     m_userData(nullptr)
 {
     // Reference this SubscriberInstance in DataSubsciber user data
-    m_subscriber.SetUserData(this);
+    m_subscriber = NewSharedPtr<DataSubscriber>();
+    m_subscriber->SetUserData(this);
 }
 
 // public functions
@@ -62,7 +63,7 @@ void SubscriberInstance::Initialize(const string& hostname, uint16_t port, uint1
 
 const Guid& SubscriberInstance::GetSubscriberID() const
 {
-    return m_subscriber.GetSubscriberID();
+    return m_subscriber->GetSubscriberID();
 }
 
 bool SubscriberInstance::GetAutoReconnect() const
@@ -121,10 +122,10 @@ void SubscriberInstance::SetFilterExpression(const string& filterExpression)
     m_filterExpression = filterExpression;
 
     // Resubscribe with new filter expression if already connected
-    if (m_subscriber.IsSubscribed())
+    if (m_subscriber->IsSubscribed())
     {
         m_subscriptionInfo.FilterExpression = m_filterExpression;
-        m_subscriber.Subscribe(m_subscriptionInfo);
+        m_subscriber->Subscribe(m_subscriptionInfo);
     }
 }
 
@@ -145,24 +146,24 @@ void SubscriberInstance::ConnectAsync()
 
 void SubscriberInstance::Connect()
 {
-    SubscriberConnector& connector = m_subscriber.GetSubscriberConnector();
+    SubscriberConnector& connector = m_subscriber->GetSubscriberConnector();
 
     // Set up helper objects (derived classes can override behavior and settings)
     SetupSubscriberConnector(connector);
     m_subscriptionInfo = CreateSubscriptionInfo();
 
     // Register callbacks
-    m_subscriber.RegisterStatusMessageCallback(&HandleStatusMessage);
-    m_subscriber.RegisterErrorMessageCallback(&HandleErrorMessage);
-    m_subscriber.RegisterDataStartTimeCallback(&HandleDataStartTime);
-    m_subscriber.RegisterMetadataCallback(&HandleMetadata);
-    m_subscriber.RegisterNewMeasurementsCallback(&HandleNewMeasurements);
-    m_subscriber.RegisterConfigurationChangedCallback(&HandleConfigurationChanged);
-    m_subscriber.RegisterConnectionTerminatedCallback(&HandleConnectionTerminated);
+    m_subscriber->RegisterStatusMessageCallback(&HandleStatusMessage);
+    m_subscriber->RegisterErrorMessageCallback(&HandleErrorMessage);
+    m_subscriber->RegisterDataStartTimeCallback(&HandleDataStartTime);
+    m_subscriber->RegisterMetadataCallback(&HandleMetadata);
+    m_subscriber->RegisterNewMeasurementsCallback(&HandleNewMeasurements);
+    m_subscriber->RegisterConfigurationChangedCallback(&HandleConfigurationChanged);
+    m_subscriber->RegisterConnectionTerminatedCallback(&HandleConnectionTerminated);
 
     if (!m_startTime.empty() && !m_stopTime.empty())
     {
-        m_subscriber.RegisterProcessingCompleteCallback(&HandleProcessingComplete);
+        m_subscriber->RegisterProcessingCompleteCallback(&HandleProcessingComplete);
         m_subscriptionInfo.StartTime = m_startTime;
         m_subscriptionInfo.StopTime = m_stopTime;
     }
@@ -174,7 +175,7 @@ void SubscriberInstance::Connect()
     }
 
     // Connect and subscribe to publisher
-    if (connector.Connect(m_subscriber, m_subscriptionInfo))
+    if (connector.Connect(*m_subscriber, m_subscriptionInfo))
     {
         ConnectionEstablished();
 
@@ -184,7 +185,7 @@ void SubscriberInstance::Connect()
         if (m_autoParseMetadata)
             SendMetadataRefreshCommand();
         else
-            m_subscriber.Subscribe();
+            m_subscriber->Subscribe();
     }
     else
     {
@@ -192,17 +193,17 @@ void SubscriberInstance::Connect()
     }
 }
 
-void SubscriberInstance::Disconnect()
+void SubscriberInstance::Disconnect() const
 {
-    m_subscriber.Disconnect();
+    m_subscriber->Disconnect();
 }
 
-void SubscriberInstance::SetHistoricalReplayInterval(int32_t replayInterval)
+void SubscriberInstance::SetHistoricalReplayInterval(int32_t replayInterval) const
 {
-    if (m_subscriber.IsSubscribed())
+    if (m_subscriber->IsSubscribed())
     {
         replayInterval = EndianConverter::Default.ConvertBigEndian(replayInterval);
-        m_subscriber.SendServerCommand(ServerCommand::UpdateProcessingInterval, reinterpret_cast<uint8_t*>(&replayInterval), 0, 4);
+        m_subscriber->SendServerCommand(ServerCommand::UpdateProcessingInterval, reinterpret_cast<uint8_t*>(&replayInterval), 0, 4);
     }
 }
 
@@ -218,57 +219,57 @@ void SubscriberInstance::SetUserData(void* userData)
 
 bool SubscriberInstance::IsPayloadDataCompressed() const
 {
-    return m_subscriber.IsPayloadDataCompressed();
+    return m_subscriber->IsPayloadDataCompressed();
 }
 
-void SubscriberInstance::SetPayloadDataCompressed(bool compressed)
+void SubscriberInstance::SetPayloadDataCompressed(bool compressed) const
 {
-    m_subscriber.SetPayloadDataCompressed(compressed);
+    m_subscriber->SetPayloadDataCompressed(compressed);
 }
 
 bool SubscriberInstance::IsMetadataCompressed() const
 {
-    return m_subscriber.IsMetadataCompressed();
+    return m_subscriber->IsMetadataCompressed();
 }
 
-void SubscriberInstance::SetMetadataCompressed(bool compressed)
+void SubscriberInstance::SetMetadataCompressed(bool compressed) const
 {
-    m_subscriber.SetMetadataCompressed(compressed);
+    m_subscriber->SetMetadataCompressed(compressed);
 }
 
 bool SubscriberInstance::IsSignalIndexCacheCompressed() const
 {
-    return m_subscriber.IsSignalIndexCacheCompressed();
+    return m_subscriber->IsSignalIndexCacheCompressed();
 }
 
-void SubscriberInstance::SetSignalIndexCacheCompressed(bool compressed)
+void SubscriberInstance::SetSignalIndexCacheCompressed(bool compressed) const
 {
-    m_subscriber.SetSignalIndexCacheCompressed(compressed);
+    m_subscriber->SetSignalIndexCacheCompressed(compressed);
 }
 
 uint64_t SubscriberInstance::GetTotalCommandChannelBytesReceived() const
 {
-    return m_subscriber.GetTotalCommandChannelBytesReceived();
+    return m_subscriber->GetTotalCommandChannelBytesReceived();
 }
 
 uint64_t SubscriberInstance::GetTotalDataChannelBytesReceived() const
 {
-    return m_subscriber.GetTotalDataChannelBytesReceived();
+    return m_subscriber->GetTotalDataChannelBytesReceived();
 }
 
 uint64_t SubscriberInstance::GetTotalMeasurementsReceived() const
 {
-    return m_subscriber.GetTotalMeasurementsReceived();
+    return m_subscriber->GetTotalMeasurementsReceived();
 }
 
 bool SubscriberInstance::IsConnected() const
 {
-    return m_subscriber.IsConnected();
+    return m_subscriber->IsConnected();
 }
 
 bool SubscriberInstance::IsSubscribed() const
 {
-    return m_subscriber.IsSubscribed();
+    return m_subscriber->IsSubscribed();
 }
 
 void SubscriberInstance::IterateDeviceMetadata(const DeviceMetadataIteratorHandlerFunction& iteratorHandler, void* userData)
@@ -534,7 +535,6 @@ SubscriptionInfo SubscriberInstance::CreateSubscriptionInfo()
 
     // Define desired filter expression
     info.FilterExpression = m_filterExpression;
-    info.RemotelySynchronized = false;
     info.Throttled = false;
     info.UdpDataChannel = false;
     info.IncludeTime = true;
@@ -562,7 +562,7 @@ void SubscriberInstance::DataStartTime(time_t unixSOC, uint16_t milliseconds)
 {
 }
 
-void SubscriberInstance::DataStartTime(DateTime startTime)
+void SubscriberInstance::DataStartTime(datetime_t startTime)
 {
 }
 
@@ -577,7 +577,7 @@ void SubscriberInstance::ReceivedMetadata(const vector<uint8_t>& payload)
         return;
     }
 
-    vector<uint8_t>* uncompressesBuffer;
+    vector<uint8_t> uncompressedBuffer;
 
     // Step 1: Decompress meta-data if needed
     if (IsMetadataCompressed())
@@ -589,24 +589,22 @@ void SubscriberInstance::ReceivedMetadata(const vector<uint8_t>& payload)
         streamBuffer.push(GZipDecompressor());
         streamBuffer.push(memoryStream);
 
-        uncompressesBuffer = new vector<uint8_t>();
-        CopyStream(&streamBuffer, *uncompressesBuffer);
+        CopyStream(&streamBuffer, uncompressedBuffer);
     }
     else
     {
-        uncompressesBuffer = const_cast<vector<uint8_t>*>(&payload);
+        // Copy payload to a local non-constant buffer, pugi load_buffer_inplace can modify buffer
+        for (size_t i = 0; i < payload.size(); i++)
+            uncompressedBuffer.push_back(payload[i]);
     }
 
     // Step 2: Load string into an XML parser
     xml_document document;
 
-    const xml_parse_result result = document.load_buffer_inplace(static_cast<void*>(uncompressesBuffer->data()), uncompressesBuffer->size());
+    const xml_parse_result result = document.load_buffer_inplace(static_cast<void*>(uncompressedBuffer.data()), uncompressedBuffer.size());
 
     if (result.status != xml_parse_status::status_ok)
     {
-        if (IsMetadataCompressed())
-            delete uncompressesBuffer;
-
         stringstream errorMessageStream;
         errorMessageStream << "Failed to parse meta data XML, status code = " << ToHex(result.status);
         ErrorMessage(errorMessageStream.str());
@@ -756,10 +754,6 @@ void SubscriberInstance::ReceivedMetadata(const vector<uint8_t>& payload)
     message << "Loaded " << devices.size() << " devices, " << measurements.size() << " measurements and " << phasorCount << " phasors from GEP meta data...";
     StatusMessage(message.str());
 
-    // Release uncompressed buffer
-    if (IsMetadataCompressed())
-        delete uncompressesBuffer;
-
     // Notify derived class that meta-data has been parsed and is now available
     ParsedMetadata();
 }
@@ -768,7 +762,7 @@ void SubscriberInstance::SendMetadataRefreshCommand()
 {
     if (m_metadataFilters.empty())
     {
-        m_subscriber.SendServerCommand(ServerCommand::MetadataRefresh);
+        m_subscriber->SendServerCommand(ServerCommand::MetadataRefresh);
         return;
     }
 
@@ -776,14 +770,14 @@ void SubscriberInstance::SendMetadataRefreshCommand()
     vector<uint8_t> buffer;
     
     const uint8_t* metadataFiltersPtr = reinterpret_cast<uint8_t*>(&m_metadataFilters[0]);
-    const uint32_t metadataFiltersSize = static_cast<uint32_t>(m_metadataFilters.size() * sizeof(char));
+    const uint32_t metadataFiltersSize = ConvertUInt32(m_metadataFilters.size() * sizeof(char));
     const uint32_t bufferSize = 4 + metadataFiltersSize;
 
     buffer.reserve(bufferSize);
     EndianConverter::WriteBigEndianBytes(buffer, metadataFiltersSize);
     WriteBytes(buffer, metadataFiltersPtr, 0, metadataFiltersSize);
 
-    m_subscriber.SendServerCommand(ServerCommand::MetadataRefresh, &buffer[0], 0, bufferSize);
+    m_subscriber->SendServerCommand(ServerCommand::MetadataRefresh, &buffer[0], 0, bufferSize);
 }
 
 void SubscriberInstance::ConstructConfigurationFrames(const StringMap<DeviceMetadataPtr>& devices, const unordered_map<Guid, MeasurementMetadataPtr>& measurements, StringMap<ConfigurationFramePtr>& configurationFrames)
@@ -876,7 +870,7 @@ void SubscriberInstance::ConstructConfigurationFrames(const StringMap<DeviceMeta
                 phasorReference->Phasor->Type = "?";
                 phasorReference->Phasor->Phase = "+";
                 phasorReference->Phasor->SourceIndex = i;
-                phasorReference->Phasor->UpdatedOn = DateTime();
+                phasorReference->Phasor->UpdatedOn = datetime_t();
                 
                 phasorReference->Angle = nullptr;
                 phasorReference->Magnitude = nullptr;
@@ -912,7 +906,7 @@ void SubscriberInstance::ConstructConfigurationFrames(const StringMap<DeviceMeta
                 measurement->Reference.Kind = SignalKind::Analog;
                 measurement->PhasorSourceIndex = 0U;
                 measurement->Description = "";
-                measurement->UpdatedOn = DateTime();
+                measurement->UpdatedOn = datetime_t();
 
                 configurationFrame->Analogs.push_back(measurement);
             }
@@ -946,7 +940,7 @@ void SubscriberInstance::ConstructConfigurationFrames(const StringMap<DeviceMeta
                 measurement->Reference.Kind = SignalKind::Digital;
                 measurement->PhasorSourceIndex = 0U;
                 measurement->Description = "";
-                measurement->UpdatedOn = DateTime();
+                measurement->UpdatedOn = datetime_t();
 
                 configurationFrame->Digitals.push_back(measurement);
             }
@@ -1030,7 +1024,14 @@ void SubscriberInstance::HandleResubscribe(DataSubscriber* source)
     {
         instance->StatusMessage("Reconnected. Subscribing to data...");
         instance->ConnectionEstablished();
-        source->Subscribe();
+
+        // If automatically parsing metadata, request metadata upon successful connection,
+        // after metadata is handled the SubscriberInstance will then initiate subscribe;
+        // otherwise, initiate subscribe immediately
+        if (instance->m_autoParseMetadata)
+            instance->SendMetadataRefreshCommand();
+        else
+            source->Subscribe();
     }
     else
     {

@@ -372,27 +372,27 @@ namespace GSF.TimeSeries.Transport
             /// <summary>
             /// Gets the code for the user command.
             /// </summary>
-            public ServerCommand Command { get; private set; }
+            public ServerCommand Command { get; }
 
             /// <summary>
             /// Gets the code for the server's response.
             /// </summary>
-            public ServerResponse Response { get; private set; }
+            public ServerResponse Response { get; }
 
             /// <summary>
             /// Gets the buffer containing the message from the server.
             /// </summary>
-            public byte[] Buffer { get; private set; }
+            public byte[] Buffer { get; }
 
             /// <summary>
             /// Gets the index into the buffer used to skip the header.
             /// </summary>
-            public int StartIndex { get; private set; }
+            public int StartIndex { get; }
 
             /// <summary>
             /// Gets the length of the message in the buffer, including the header.
             /// </summary>
-            public int Length { get; private set; }
+            public int Length { get; }
         }
 
         // Constants
@@ -562,8 +562,6 @@ namespace GSF.TimeSeries.Transport
         private Ticks m_parsingExceptionWindow;
         private bool m_supportsRealTimeProcessing;
         private bool m_supportsTemporalProcessing;
-        private DateTime m_startTimeConstraint;
-        private DateTime m_stopTimeConstraint;
         //private Ticks m_lastMeasurementCheck;
         //private Ticks m_minimumMissingMeasurementThreshold = 5;
         //private double m_transmissionDelayTimeAdjustment = 5.0;
@@ -1314,7 +1312,7 @@ namespace GSF.TimeSeries.Transport
                 status.AppendLine();
 
                 if (DataLossInterval > 0.0D)
-                    status.AppendFormat("No data reconnect interval: {0} seconds", DataLossInterval.ToString("0.000"));
+                    status.AppendFormat("No data reconnect interval: {0:0.000} seconds", DataLossInterval);
                 else
                     status.Append("No data reconnect interval: disabled");
 
@@ -2103,7 +2101,7 @@ namespace GSF.TimeSeries.Transport
         public bool SynchronizedSubscribe(SynchronizedSubscriptionInfo info)
         {
             StringBuilder connectionString = new StringBuilder();
-            AssemblyInfo assemblyInfo = AssemblyInfo.ExecutingAssembly;
+            AssemblyInfo assemblyInfo = new AssemblyInfo(typeof(DataSubscriber).Assembly);
 
             // Dispose of any previously established local concentrator
             DisposeLocalConcentrator();
@@ -2201,7 +2199,7 @@ namespace GSF.TimeSeries.Transport
             DisposeLocalConcentrator();
 
             StringBuilder connectionString = new StringBuilder();
-            AssemblyInfo assemblyInfo = AssemblyInfo.ExecutingAssembly;
+            AssemblyInfo assemblyInfo = new AssemblyInfo(typeof(DataSubscriber).Assembly);
 
             connectionString.AppendFormat("trackLatestMeasurements={0};", info.Throttled);
             connectionString.AppendFormat("publishInterval={0};", info.PublishInterval);
@@ -2318,7 +2316,7 @@ namespace GSF.TimeSeries.Transport
             DisposeLocalConcentrator();
 
             StringBuilder connectionString = new StringBuilder();
-            AssemblyInfo assemblyInfo = AssemblyInfo.ExecutingAssembly;
+            AssemblyInfo assemblyInfo = new AssemblyInfo(typeof(DataSubscriber).Assembly);
 
             connectionString.AppendFormat("framesPerSecond={0}; ", framesPerSecond);
             connectionString.AppendFormat("lagTime={0}; ", lagTime);
@@ -2452,7 +2450,7 @@ namespace GSF.TimeSeries.Transport
 
             // Initiate unsynchronized subscribe
             StringBuilder connectionString = new StringBuilder();
-            AssemblyInfo assemblyInfo = AssemblyInfo.ExecutingAssembly;
+            AssemblyInfo assemblyInfo = new AssemblyInfo(typeof(DataSubscriber).Assembly);
 
             connectionString.AppendFormat("trackLatestMeasurements={0}; ", false);
             connectionString.AppendFormat("inputMeasurementKeys={{{0}}}; ", filterExpression.ToNonNullString());
@@ -2556,7 +2554,7 @@ namespace GSF.TimeSeries.Transport
             DisposeLocalConcentrator();
 
             StringBuilder connectionString = new StringBuilder();
-            AssemblyInfo assemblyInfo = AssemblyInfo.ExecutingAssembly;
+            AssemblyInfo assemblyInfo = new AssemblyInfo(typeof(DataSubscriber).Assembly);
 
             connectionString.AppendFormat("trackLatestMeasurements={0}; ", throttled);
             connectionString.AppendFormat("inputMeasurementKeys={{{0}}}; ", filterExpression.ToNonNullString());
@@ -4190,10 +4188,14 @@ namespace GSF.TimeSeries.Transport
                             // Define SQL statement to update destinationPhasorID field of existing phasor record
                             string updateDestinationPhasorIDSql = database.ParameterizedQueryString("UPDATE Phasor SET DestinationPhasorID = {0} WHERE ID = {1}", "destinationPhasorID", "id");
 
+                            // Define SQL statement to update phasor BaseKV
+                            string updatePhasorBaseKVSql = database.ParameterizedQueryString("UPDATE Phasor SET BaseKV = {0} WHERE DeviceID = {1} AND SourceIndex = {2}", "baseKV", "deviceID", "sourceIndex");
+
                             // Check existence of optional meta-data fields
                             DataColumnCollection phasorDetailColumns = phasorDetail.Columns;
                             bool phasorIDFieldExists = phasorDetailColumns.Contains("ID");
                             bool destinationPhasorIDFieldExists = phasorDetailColumns.Contains("DestinationPhasorID");
+                            bool baseKVFieldExists = phasorDetailColumns.Contains("BaseKV");
 
                             foreach (DataRow row in phasorDetail.Rows)
                             {
@@ -4222,18 +4224,24 @@ namespace GSF.TimeSeries.Transport
                                     deviceID = deviceIDs[deviceAcronym];
 
                                     int sourceIndex = row.ConvertField<int>("SourceIndex");
+                                    bool updateRecord = false;
 
                                     // Determine if phasor record already exists
                                     if (Convert.ToInt32(command.ExecuteScalar(phasorExistsSql, m_metadataSynchronizationTimeout, deviceID, sourceIndex)) == 0)
                                     {
                                         // Insert new phasor record
                                         command.ExecuteNonQuery(insertPhasorSql, m_metadataSynchronizationTimeout, deviceID, row.Field<string>("Label") ?? "undefined", (row.Field<string>("Type") ?? "V").TruncateLeft(1), (row.Field<string>("Phase") ?? "+").TruncateLeft(1), sourceIndex);
+                                        updateRecord = true;
                                     }
                                     else if (recordNeedsUpdating)
                                     {
                                         // Update existing phasor record
                                         command.ExecuteNonQuery(updatePhasorSql, m_metadataSynchronizationTimeout, row.Field<string>("Label") ?? "undefined", (row.Field<string>("Type") ?? "V").TruncateLeft(1), (row.Field<string>("Phase") ?? "+").TruncateLeft(1), deviceID, sourceIndex);
+                                        updateRecord = true;
                                     }
+
+                                    if (updateRecord && baseKVFieldExists)
+                                        command.ExecuteNonQuery(updatePhasorBaseKVSql, m_metadataSynchronizationTimeout, row.ConvertField<int>("BaseKV"), deviceID, sourceIndex);
 
                                     if (phasorIDFieldExists && destinationPhasorIDFieldExists)
                                     {
@@ -5046,12 +5054,16 @@ namespace GSF.TimeSeries.Transport
 
         private void UpdateStatisticsHelpers()
         {
-            long now = RealTime;
             List<DeviceStatisticsHelper<SubscribedDevice>> statisticsHelpers = m_statisticsHelpers;
+
+            if ((object)statisticsHelpers == null)
+                return;
+
+            long now = RealTime;
 
             foreach (DeviceStatisticsHelper<SubscribedDevice> statisticsHelper in statisticsHelpers)
             {
-                statisticsHelper.Update(now);
+                statisticsHelper?.Update(now);
 
                 // TODO: Missing data detection could be complex. For example, no need to continue logging data outages for devices that are offline - but how to detect?
                 //// If data channel is UDP, measurements are missing for time span and data gap recovery enabled, request missing
@@ -5193,7 +5205,7 @@ namespace GSF.TimeSeries.Transport
         private void m_commandChannel_ConnectionException(object sender, EventArgs<Exception> e)
         {
             Exception ex = e.Argument;
-            OnProcessException(MessageLevel.Info, new InvalidOperationException("Data subscriber encountered an exception while attempting command channel publisher connection: " + ex.Message, ex));
+            OnProcessException(MessageLevel.Info, new ConnectionException("Data subscriber encountered an exception while attempting command channel publisher connection: " + ex.Message, ex));
         }
 
         private void m_commandChannel_ConnectionAttempt(object sender, EventArgs e)
@@ -5247,7 +5259,7 @@ namespace GSF.TimeSeries.Transport
         private void m_dataChannel_ConnectionException(object sender, EventArgs<Exception> e)
         {
             Exception ex = e.Argument;
-            OnProcessException(MessageLevel.Info, new InvalidOperationException("Data subscriber encountered an exception while attempting to establish UDP data channel connection: " + ex.Message, ex));
+            OnProcessException(MessageLevel.Info, new ConnectionException("Data subscriber encountered an exception while attempting to establish UDP data channel connection: " + ex.Message, ex));
         }
 
         private void m_dataChannel_ConnectionAttempt(object sender, EventArgs e)

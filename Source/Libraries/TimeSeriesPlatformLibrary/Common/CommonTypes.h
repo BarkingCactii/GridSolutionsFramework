@@ -24,6 +24,7 @@
 #ifndef __COMMON_TYPES_H
 #define __COMMON_TYPES_H
 
+#include <climits>
 #include <cstddef>
 #include <map>
 #include <unordered_map>
@@ -41,12 +42,38 @@
 #include <boost/iostreams/filter/gzip.hpp>
 #include <boost/iostreams/device/array.hpp>
 
+#if _WIN32 || _WIN64
+#if _WIN64
+#define _32BIT 0
+#define _64BIT 1
+#else
+#define _32BIT 1
+#define _64BIT 0
+#endif
+#endif
+
+#if __GNUC__
+#if __x86_64__ || __ppc64__
+#define _32BIT 0
+#define _64BIT 1
+#else
+#define _32BIT 1
+#define _64BIT 0
+#endif
+#endif
+
 namespace GSF
 {
+    static_assert(sizeof(float) * CHAR_BIT == 32, "float not defined as 32-bits");
+    static_assert(sizeof(double) * CHAR_BIT == 64, "double not defined as 64-bits");
+
     // Floating-point types
-    typedef float_t float32_t;
-    typedef double_t float64_t;
+    typedef float float32_t;
+    typedef double float64_t;
     typedef boost::multiprecision::cpp_dec_float_100 decimal_t;
+
+    // DateTime type
+    typedef boost::posix_time::ptime datetime_t;
 
     struct Int8
     {
@@ -81,19 +108,19 @@ namespace GSF
     struct UInt32
     {
         static const uint32_t MaxValue = static_cast<uint32_t>(4294967295U);
-        static const uint32_t MinValue = static_cast<uint32_t>(0);
+        static const uint32_t MinValue = static_cast<uint32_t>(0U);
     };
 
     struct Int64
     {
-        static const int64_t MaxValue = static_cast<int64_t>(9223372036854775807L);
-        static const int64_t MinValue = static_cast<int64_t>(-9223372036854775807L) - 1L;
+        static const int64_t MaxValue = static_cast<int64_t>(9223372036854775807LL);
+        static const int64_t MinValue = static_cast<int64_t>(-9223372036854775807LL) - 1LL;
     };
 
     struct UInt64
     {
-        static const uint64_t MaxValue = static_cast<uint64_t>(18446744073709551615UL);
-        static const uint64_t MinValue = static_cast<uint64_t>(0UL);
+        static const uint64_t MaxValue = static_cast<uint64_t>(18446744073709551615ULL);
+        static const uint64_t MinValue = static_cast<uint64_t>(0ULL);
     };
 
     struct Decimal
@@ -105,17 +132,47 @@ namespace GSF
         static const decimal_t DotNetMinValue;
     };
 
+    struct DateTime
+    {
+        static const datetime_t MaxValue;
+        static const datetime_t MinValue;
+    };
+
     struct Ticks
     {
-        static const int64_t PerSecond = 10000000L;
-        static const int64_t PerMillisecond = Ticks::PerSecond / 1000;
-        static const int64_t PerMicrosecond = Ticks::PerSecond / 1000000;
-        static const int64_t PerMinute = 60L * Ticks::PerSecond;
-        static const int64_t PerHour = 60L * Ticks::PerMinute;
-        static const int64_t PerDay = 24L * Ticks::PerHour;
-        static const int64_t UnixBaseOffset = 621355968000000000L;  // 01/01/1970 00:00:00
-        static const int64_t PtimeBaseOffset = 441481536000000000L; // 01/01/1400 00:00:00
+        static const int64_t MaxValue = 3155378975999999999LL;       // 12/31/1999 11:59:59.999
+        static const int64_t MinValue = 0LL;                         // 01/01/0001 00:00:00.000
+
+        static const int64_t UnixBaseOffset = 621355968000000000LL;  // 01/01/1970 00:00:00.000
+        static const int64_t PTimeBaseOffset = 441481536000000000LL; // 01/01/1400 00:00:00.000
+
+        static const int64_t PerSecond = 10000000LL;
+        static const int64_t PerMillisecond = Ticks::PerSecond / 1000LL;
+        static const int64_t PerMicrosecond = Ticks::PerSecond / 1000000LL;
+        static const int64_t PerMinute = 60LL * Ticks::PerSecond;
+        static const int64_t PerHour = 60LL * Ticks::PerMinute;
+        static const int64_t PerDay = 24LL * Ticks::PerHour;
     };
+
+    inline int32_t ConvertInt32(size_t value)
+    {
+    #if _64BIT
+        if (value > static_cast<size_t>(Int32::MaxValue))
+            throw std::runtime_error("Cannot cast size_t value to int32_t: value is out of range");
+    #endif
+
+        return static_cast<int32_t>(value);
+    }
+
+    inline uint32_t ConvertUInt32(const size_t value)
+    {
+    #if _64BIT
+        if (value > static_cast<size_t>(UInt32::MaxValue))
+            throw std::runtime_error("Cannot cast size_t value to uint32_t: value is out of range");
+    #endif
+
+        return static_cast<uint32_t>(value);
+    }
 
     template<class T>
     using SharedPtr = boost::shared_ptr<T>;
@@ -167,17 +224,23 @@ namespace GSF
 
     typedef boost::any Object;
     typedef boost::uuids::uuid Guid;
-    typedef boost::posix_time::ptime DateTime;
     typedef boost::posix_time::time_duration TimeSpan;
+    typedef boost::posix_time::milliseconds Milliseconds;
+    typedef boost::posix_time::microseconds Microseconds;
     typedef boost::system::error_code ErrorCode;
     typedef boost::system::system_error SystemError;
     typedef boost::exception Exception;
     typedef boost::thread Thread;
     typedef boost::mutex Mutex;
+    typedef boost::shared_mutex SharedMutex;
     typedef boost::condition_variable WaitHandle;
     typedef boost::lock_guard<Mutex> ScopeLock;
     typedef boost::unique_lock<Mutex> UniqueLock;
+    typedef boost::unique_lock<SharedMutex> WriterLock;
+    typedef boost::shared_lock<SharedMutex> ReaderLock;
     typedef boost::asio::io_context IOContext;
+    typedef boost::asio::io_context::strand Strand;
+    typedef boost::asio::deadline_timer DeadlineTimer;
     typedef boost::asio::ip::address IPAddress;
     typedef boost::asio::ip::tcp::socket TcpSocket;
     typedef boost::asio::ip::udp::socket UdpSocket;
@@ -192,7 +255,7 @@ namespace GSF
     struct Empty
     {
         static const std::string String;
-        static const GSF::DateTime DateTime;
+        static const GSF::datetime_t DateTime;
         static const GSF::Guid Guid;
         static const GSF::Object Object;
         static const GSF::IPAddress IPAddress;
@@ -321,33 +384,9 @@ namespace GSF
         return length;
     }
 
-    static uint32_t WriteBytes(std::vector<uint8_t>& buffer, const uint8_t* source, const uint32_t offset, const uint32_t length)
-    {
-        for (uint32_t i = 0; i < length; i++)
-            buffer.push_back(source[offset + i]);
-
-        return length;
-    }
-
-    static uint32_t WriteBytes(std::vector<uint8_t>& buffer, const std::vector<uint8_t>& source)
-    {
-        const uint32_t length = source.size();
-
-        for (uint32_t i = 0; i < length; i++)
-            buffer.push_back(source[i]);
-
-        return length;
-    }
-
-    static uint32_t WriteBytes(std::vector<uint8_t>& buffer, const Guid& value)
-    {
-        const uint8_t* bytes = value.data;
-
-        for (uint32_t i = 0; i < 16; i++)
-            buffer.push_back(bytes[i]);
-
-        return 16;
-    }
+    uint32_t WriteBytes(std::vector<uint8_t>& buffer, const uint8_t* source, const uint32_t offset, const uint32_t length);
+    uint32_t WriteBytes(std::vector<uint8_t>& buffer, const std::vector<uint8_t>& source);
+    uint32_t WriteBytes(std::vector<uint8_t>& buffer, const Guid& value);
 
     Guid NewGuid();
 
@@ -375,6 +414,10 @@ namespace GSF
     std::string PadLeft(const std::string& value, uint32_t count, char padChar);
     std::string PadRight(const std::string& value, uint32_t count, char padChar);
 
+    #ifndef __STDC_WANT_SECURE_LIB__
+    #define strcpy_s(dest, size, src) strncpy(dest, src, size)
+    #endif
+
     // Handy date/time functions (boost wrappers)
     enum class TimeInterval
     {
@@ -390,11 +433,11 @@ namespace GSF
         Millisecond
     };
 
-    DateTime DateAdd(const DateTime& value, int32_t addValue, TimeInterval interval);
-    int32_t DateDiff(const DateTime& startTime, const DateTime& endTime, TimeInterval interval);
-    int32_t DatePart(const DateTime& value, TimeInterval interval);
-    DateTime Now();
-    DateTime UtcNow();
+    datetime_t DateAdd(const datetime_t& value, int32_t addValue, TimeInterval interval);
+    int32_t DateDiff(const datetime_t& startTime, const datetime_t& endTime, TimeInterval interval);
+    int32_t DatePart(const datetime_t& value, TimeInterval interval);
+    datetime_t Now();
+    datetime_t UtcNow();
 }
 
 // Setup standard hash code for Guid

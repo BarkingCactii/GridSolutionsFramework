@@ -28,7 +28,7 @@
 
 #include "TransportTypes.h"
 #include "SignalIndexCache.h"
-#include "TSSCMeasurementParser.h"
+#include "TSSCDecoder.h"
 #include "../Common/ThreadSafeQueue.h"
 
 namespace GSF {
@@ -42,18 +42,23 @@ namespace Transport
     {
         std::string FilterExpression;
 
-        bool RemotelySynchronized;
+        // Down-sampling properties
         bool Throttled;
+        float64_t PublishInterval;
 
+        // UDP channel properties
         bool UdpDataChannel;
         uint16_t DataChannelLocalPort;
 
+        // Compact measurement properties
         bool IncludeTime;
         float64_t LagTime;
         float64_t LeadTime;
         bool UseLocalClockAsRealTime;
         bool UseMillisecondResolution;
+        bool RequestNaNValueFilter;
 
+        // Temporal playback properties
         std::string StartTime;
         std::string StopTime;
         std::string ConstraintParameters;
@@ -134,7 +139,7 @@ namespace Transport
 
     class DataSubscriber // NOLINT
     {
-    private:
+    public:
         // Function pointer types
         typedef std::function<void(DataSubscriber*, const std::vector<uint8_t>&)> DispatcherFunction;
         typedef std::function<void(DataSubscriber*, const std::string&)> MessageCallback;
@@ -144,6 +149,7 @@ namespace Transport
         typedef std::function<void(DataSubscriber*)> ConfigurationChangedCallback;
         typedef std::function<void(DataSubscriber*)> ConnectionTerminatedCallback;
 
+    private:
         // Structure used to dispatch
         // callbacks on the callback thread.
         struct CallbackDispatcher
@@ -162,7 +168,7 @@ namespace Transport
         bool m_compressPayloadData;
         bool m_compressMetadata;
         bool m_compressSignalIndexCache;
-        bool m_disconnecting;
+        volatile bool m_disconnecting;
         void* m_userData;
 
         // Statistics counters
@@ -176,7 +182,7 @@ namespace Transport
         SignalIndexCachePtr m_signalIndexCache;
         int32_t m_timeIndex;
         int64_t m_baseTimeOffsets[2];
-        TSSCMeasurementParser m_tsscMeasurementParser;
+        TSSCDecoder m_tsscDecoder;
         bool m_tsscResetRequested;
         uint16_t m_tsscSequenceNumber;
 
@@ -213,9 +219,9 @@ namespace Transport
         void RunDataChannelResponseThread();
 
         // Command channel callbacks
-        void ReadPayloadHeader(const ErrorCode& error, uint32_t bytesTransferred);
-        void ReadPacket(const ErrorCode& error, uint32_t bytesTransferred);
-        void WriteHandler(const ErrorCode& error, uint32_t bytesTransferred);
+        void ReadPayloadHeader(const ErrorCode& error, size_t bytesTransferred);
+        void ReadPacket(const ErrorCode& error, size_t bytesTransferred);
+        void WriteHandler(const ErrorCode& error, size_t bytesTransferred);
 
         // Server response handlers
         void ProcessServerResponse(uint8_t* buffer, uint32_t offset, uint32_t length);
@@ -263,14 +269,14 @@ namespace Transport
         // Callback registration
         //
         // Callback functions are defined with the following signatures:
-        //   void ProcessStatusMessage(DataSubscriber*, const string& message)
-        //   void ProcessErrorMessage(DataSubscriber*, const string& message)
-        //   void ProcessDataStartTime(DataSubscriber*, int64_t startTime)
-        //   void ProcessMetadata(DataSubscriber*, const vector<uint8_t>& metadata)
-        //   void ProcessNewMeasurements(DataSubscriber*, const vector<MeasurementPtr>& newMeasurements)
-        //   void ProcessProcessingComplete(DataSubscriber*, const string& message)
-        //   void ProcessConfigurationChanged(DataSubscriber*)
-        //   void ProcessConnectionTerminated(DataSubscriber*)
+        //   void HandleStatusMessage(DataSubscriber* source, const string& message)
+        //   void HandleErrorMessage(DataSubscriber* source, const string& message)
+        //   void HandleDataStartTime(DataSubscriber* source, int64_t startTime)
+        //   void HandleMetadata(DataSubscriber* source, const vector<uint8_t>& metadata)
+        //   void HandleNewMeasurements(DataSubscriber* source, const vector<MeasurementPtr>& newMeasurements)
+        //   void HandleProcessingComplete(DataSubscriber* source, const string& message)
+        //   void HandleConfigurationChanged(DataSubscriber* source)
+        //   void HandleConnectionTerminated(DataSubscriber* source)
         //
         // Metadata is provided to the user as zlib-compressed XML,
         // and must be decompressed and interpreted before it can be used.
@@ -358,6 +364,8 @@ namespace Transport
         bool IsConnected() const;
         bool IsSubscribed() const;
     };
+
+    typedef SharedPtr<DataSubscriber> DataSubscriberPtr;
 }}}
 
 #endif

@@ -251,6 +251,12 @@ namespace LogFileViewer
                         items.AddRange(new EventMenu(messages).GetMenuButtons());
                         break;
                     case "Time":
+                        var rows = new HashSet<int>();
+                        foreach (DataGridViewCell cell in dgvResults.SelectedCells)
+                        {
+                            if (rows.Add(cell.RowIndex))
+                                messages.Add((LogMessage)dgvResults.Rows[cell.RowIndex].Cells["Object"].Value);
+                        }
                         items.AddRange(new TimestampMenu(messages).GetMenuButtons());
                         break;
                     case "Level":
@@ -259,11 +265,14 @@ namespace LogFileViewer
                     case "Exception":
                         items.AddRange(new ExceptionMenu(messages).GetMenuButtons());
                         break;
+                    case "Details":
+                        items.AddRange(new DetailsMenu(messages).GetMenuButtons());
+                        break;
                     case "Message":
                         items.AddRange(new MessageMenu(messages).GetMenuButtons());
                         break;
                     case "Stack Details":
-                        //MakeMenu(e, new MatchStackMessages(item));
+                        items.AddRange(new StackDetailsMenu(messages).GetMenuButtons());
                         break;
                     default:
                         return;

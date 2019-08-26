@@ -43,8 +43,8 @@ using namespace GSF::TimeSeries::Transport;
 // --- SubscriptionInfo ---
 
 SubscriptionInfo::SubscriptionInfo() :
-    RemotelySynchronized(false),
     Throttled(false),
+    PublishInterval(0.0),
     UdpDataChannel(false),
     DataChannelLocalPort(9500),
     IncludeTime(true),
@@ -52,6 +52,7 @@ SubscriptionInfo::SubscriptionInfo() :
     LeadTime(5.0),
     UseLocalClockAsRealTime(false),
     UseMillisecondResolution(false),
+    RequestNaNValueFilter(false),
     ProcessingInterval(-1)
 {
 }
@@ -143,8 +144,8 @@ bool SubscriberConnector::Connect(DataSubscriber& subscriber)
                 Thread(bind(m_errorMessageCallback, &subscriber, errorMessageStream.str()));
             }
 
-            io_context io;
-            deadline_timer timer(io, posix_time::milliseconds(m_retryInterval));
+            IOContext io;
+            DeadlineTimer timer(io, Milliseconds(m_retryInterval));
             timer.wait();
         }
     }
@@ -284,7 +285,7 @@ void DataSubscriber::RunCommandChannelResponseThread()
 }
 
 // Callback for async read of the payload header.
-void DataSubscriber::ReadPayloadHeader(const ErrorCode& error, uint32_t bytesTransferred)
+void DataSubscriber::ReadPayloadHeader(const ErrorCode& error, size_t bytesTransferred)
 {
     const uint32_t PacketSizeOffset = 4;
 
@@ -314,7 +315,7 @@ void DataSubscriber::ReadPayloadHeader(const ErrorCode& error, uint32_t bytesTra
 
     const uint32_t packetSize = EndianConverter::ToLittleEndian<uint32_t>(m_readBuffer.data(), PacketSizeOffset);
 
-    if (packetSize > static_cast<uint32_t>(m_readBuffer.size()))
+    if (packetSize > ConvertUInt32(m_readBuffer.size()))
         m_readBuffer.resize(packetSize);
 
     // Read packet (payload body)
@@ -324,7 +325,7 @@ void DataSubscriber::ReadPayloadHeader(const ErrorCode& error, uint32_t bytesTra
 }
 
 // Callback for async read of packets.
-void DataSubscriber::ReadPacket(const ErrorCode& error, uint32_t bytesTransferred)
+void DataSubscriber::ReadPacket(const ErrorCode& error, size_t bytesTransferred)
 {
     if (m_disconnecting)
         return;
@@ -351,7 +352,7 @@ void DataSubscriber::ReadPacket(const ErrorCode& error, uint32_t bytesTransferre
     m_totalCommandChannelBytesReceived += bytesTransferred;
 
     // Process response
-    ProcessServerResponse(&m_readBuffer[0], 0, bytesTransferred);
+    ProcessServerResponse(&m_readBuffer[0], 0, ConvertUInt32(bytesTransferred));
 
     // Read next payload header
     async_read(m_commandChannelSocket, buffer(m_readBuffer, Common::PayloadHeaderSize), bind(&DataSubscriber::ReadPayloadHeader, this, _1, _2));
@@ -370,7 +371,7 @@ void DataSubscriber::RunDataChannelResponseThread()
 
     while (true)
     {
-        length = m_dataChannelSocket.receive_from(asio::buffer(buffer), endpoint, 0, error);
+        length = ConvertUInt32(m_dataChannelSocket.receive_from(asio::buffer(buffer), endpoint, 0, error));
 
         if (m_disconnecting)
             break;
@@ -450,7 +451,7 @@ void DataSubscriber::ProcessServerResponse(uint8_t* buffer, uint32_t offset, uin
 // Handles success messages received from the server.
 void DataSubscriber::HandleSucceeded(uint8_t commandCode, uint8_t* data, uint32_t offset, uint32_t length)
 {
-    const uint32_t messageLength = length / sizeof(char);
+    const uint32_t messageLength = ConvertUInt32(length / sizeof(char));
     stringstream messageStream;
 
     char* messageStart;
@@ -504,7 +505,7 @@ void DataSubscriber::HandleFailed(uint8_t commandCode, uint8_t* data, uint32_t o
     if (data == nullptr)
         return;
 
-    const uint32_t messageLength = length / sizeof(char);
+    const uint32_t messageLength = ConvertUInt32(length / sizeof(char));
     stringstream messageStream;
 
     char* messageStart;
@@ -581,6 +582,8 @@ void DataSubscriber::HandleUpdateBaseTimes(uint8_t* data, uint32_t offset, uint3
     m_timeIndex = EndianConverter::Default.ConvertBigEndian(*timeIndexPtr);
     m_baseTimeOffsets[0] = EndianConverter::Default.ConvertBigEndian(timeOffsetsPtr[0]);
     m_baseTimeOffsets[1] = EndianConverter::Default.ConvertBigEndian(timeOffsetsPtr[1]);
+
+    DispatchStatusMessage("Received new base time offset from publisher: " + ToString(FromTicks(m_baseTimeOffsets[m_timeIndex ^ 1])));
 }
 
 // Handles configuration changed message sent by the server at the end of a temporal session.
@@ -617,7 +620,7 @@ void DataSubscriber::HandleDataPacket(uint8_t* data, uint32_t offset, uint32_t l
         // Read measurement count and gather statistics
         const uint32_t count = EndianConverter::ToBigEndian<uint32_t>(data, offset);
         m_totalMeasurementsReceived += count;
-        offset += 4;
+        offset += 4; //-V112
 
         vector<MeasurementPtr> measurements;
 
@@ -659,7 +662,7 @@ void DataSubscriber::ParseTSSCMeasurements(uint8_t* data, uint32_t offset, uint3
             DispatchStatusMessage(statusMessageStream.str());
         }
 
-        m_tsscMeasurementParser.Reset();
+        m_tsscDecoder.Reset();
         m_tsscSequenceNumber = 0;
         m_tsscResetRequested = false;
     }
@@ -682,7 +685,7 @@ void DataSubscriber::ParseTSSCMeasurements(uint8_t* data, uint32_t offset, uint3
 
     try
     {
-        m_tsscMeasurementParser.SetBuffer(data, offset, length);
+        m_tsscDecoder.SetBuffer(data, offset, length);
 
         Guid signalID;
         string measurementSource;
@@ -692,7 +695,7 @@ void DataSubscriber::ParseTSSCMeasurements(uint8_t* data, uint32_t offset, uint3
         uint32_t quality;
         float32_t value;
 
-        while (m_tsscMeasurementParser.TryGetMeasurement(id, time, quality, value))
+        while (m_tsscDecoder.TryGetMeasurement(id, time, quality, value))
         {
             if (m_signalIndexCache->GetMeasurementKey(id, signalID, measurementSource, measurementID))
             {
@@ -702,7 +705,7 @@ void DataSubscriber::ParseTSSCMeasurements(uint8_t* data, uint32_t offset, uint3
                 measurement->Source = measurementSource;
                 measurement->ID = measurementID;
                 measurement->Timestamp = time;
-                measurement->Flags = quality;
+                measurement->Flags = static_cast<MeasurementStateFlags>(quality);
                 measurement->Value = value;
 
                 measurements.push_back(measurement);
@@ -792,14 +795,14 @@ void DataSubscriber::Dispatch(const DispatcherFunction& function, const uint8_t*
 // Invokes the status message callback on the callback thread and provides the given message to it.
 void DataSubscriber::DispatchStatusMessage(const string& message)
 {
-    const uint32_t messageSize = (message.size() + 1) * sizeof(char);
+    const uint32_t messageSize = ConvertUInt32((message.size() + 1) * sizeof(char));
     Dispatch(&StatusMessageDispatcher, reinterpret_cast<const uint8_t*>(message.c_str()), 0, messageSize);
 }
 
 // Invokes the error message callback on the callback thread and provides the given message to it.
 void DataSubscriber::DispatchErrorMessage(const string& message)
 {
-    const uint32_t messageSize = (message.size() + 1) * sizeof(char);
+    const uint32_t messageSize = ConvertUInt32((message.size() + 1) * sizeof(char));
     Dispatch(&ErrorMessageDispatcher, reinterpret_cast<const uint8_t*>(message.c_str()), 0, messageSize);
 }
 
@@ -1101,6 +1104,7 @@ void DataSubscriber::Disconnect(bool autoReconnect)
     else
     {
         m_connector.Cancel();
+        m_commandChannelService.stop();
     }
 
     // Disconnect completed
@@ -1143,12 +1147,14 @@ void DataSubscriber::Subscribe()
     m_totalMeasurementsReceived = 0UL;
 
     connectionStream << "trackLatestMeasurements=" << m_subscriptionInfo.Throttled << ";";
+    connectionStream << "publishInterval" << m_subscriptionInfo.PublishInterval << ";";
     connectionStream << "includeTime=" << m_subscriptionInfo.IncludeTime << ";";
     connectionStream << "lagTime=" << m_subscriptionInfo.LagTime << ";";
     connectionStream << "leadTime=" << m_subscriptionInfo.LeadTime << ";";
     connectionStream << "useLocalClockAsRealTime=" << m_subscriptionInfo.UseLocalClockAsRealTime << ";";
     connectionStream << "processingInterval=" << m_subscriptionInfo.ProcessingInterval << ";";
     connectionStream << "useMillisecondResolution=" << m_subscriptionInfo.UseMillisecondResolution << ";";
+    connectionStream << "requestNaNValueFilter" << m_subscriptionInfo.RequestNaNValueFilter << ";";
     connectionStream << "assemblyInfo={source=TimeSeriesPlatformLibrary; version=" GSFTS_VERSION "; buildDate=" GSFTS_BUILD_DATE "};";
 
     if (!m_subscriptionInfo.FilterExpression.empty())
@@ -1186,15 +1192,14 @@ void DataSubscriber::Subscribe()
 
     connectionString = connectionStream.str();
     connectionStringPtr = reinterpret_cast<uint8_t*>(&connectionString[0]);
-    connectionStringSize = static_cast<uint32_t>(connectionString.size() * sizeof(char));
+    connectionStringSize = ConvertUInt32(connectionString.size() * sizeof(char));
     bigEndianConnectionStringSize = EndianConverter::Default.ConvertBigEndian(connectionStringSize);
     bigEndianConnectionStringSizePtr = reinterpret_cast<uint8_t*>(&bigEndianConnectionStringSize);
 
     bufferSize = 5 + connectionStringSize;
     buffer.resize(bufferSize, 0);
 
-    buffer[0] = DataPacketFlags::Compact | (m_subscriptionInfo.RemotelySynchronized ? DataPacketFlags::Synchronized : DataPacketFlags::NoFlags);
-
+    buffer[0] = DataPacketFlags::Compact;
     buffer[1] = bigEndianConnectionStringSizePtr[0];
     buffer[2] = bigEndianConnectionStringSizePtr[1];
     buffer[3] = bigEndianConnectionStringSizePtr[2];
@@ -1241,7 +1246,7 @@ void DataSubscriber::SendServerCommand(uint8_t commandCode, string message)
     uint8_t* bigEndianMessageSizePtr;
 
     messagePtr = reinterpret_cast<uint8_t*>(&message[0]);
-    messageSize = static_cast<uint32_t>(message.size() * sizeof(char));
+    messageSize = ConvertUInt32(message.size() * sizeof(char));
     bigEndianMessageSize = EndianConverter::Default.ConvertBigEndian(messageSize);
     bigEndianMessageSizePtr = reinterpret_cast<uint8_t*>(&bigEndianMessageSize);
 
@@ -1262,12 +1267,12 @@ void DataSubscriber::SendServerCommand(uint8_t commandCode, string message)
 // Sends a command along with the given data to the server.
 void DataSubscriber::SendServerCommand(uint8_t commandCode, const uint8_t* data, uint32_t offset, uint32_t length)
 {
-    const uint32_t packetSize = 1 + static_cast<uint32_t>(length);
+    const uint32_t packetSize = length + 1;
     uint32_t littleEndianPacketSize = EndianConverter::Default.ConvertLittleEndian(packetSize);
     uint8_t* littleEndianPacketSizePtr = reinterpret_cast<uint8_t*>(&littleEndianPacketSize);
     const uint32_t commandBufferSize = packetSize + 8U;
 
-    if (commandBufferSize > static_cast<uint32_t>(m_writeBuffer.size()))
+    if (commandBufferSize > ConvertUInt32(m_writeBuffer.size()))
         m_writeBuffer.resize(commandBufferSize);
 
     // Insert payload marker
@@ -1294,7 +1299,7 @@ void DataSubscriber::SendServerCommand(uint8_t commandCode, const uint8_t* data,
     async_write(m_commandChannelSocket, buffer(m_writeBuffer, commandBufferSize), bind(&DataSubscriber::WriteHandler, this, _1, _2));
 }
 
-void DataSubscriber::WriteHandler(const ErrorCode& error, uint32_t bytesTransferred)
+void DataSubscriber::WriteHandler(const ErrorCode& error, size_t bytesTransferred)
 {
     if (m_disconnecting)
         return;

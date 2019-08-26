@@ -34,7 +34,7 @@ namespace Transport
     {
     private:
         // Subscription members
-        DataSubscriber m_subscriber;
+        DataSubscriberPtr m_subscriber;
         SubscriptionInfo m_subscriptionInfo;
         std::string m_hostname;
         uint16_t m_port;
@@ -79,7 +79,7 @@ namespace Transport
         virtual void StatusMessage(const std::string& message);	// Defaults output to cout
         virtual void ErrorMessage(const std::string& message);	// Defaults output to cerr
         virtual void DataStartTime(time_t unixSOC, uint16_t milliseconds);
-        virtual void DataStartTime(DateTime startTime);
+        virtual void DataStartTime(datetime_t startTime);
         virtual void ReceivedMetadata(const std::vector<uint8_t>& payload);
         virtual void ParsedMetadata();
         virtual void ReceivedNewMeasurements(const std::vector<MeasurementPtr>& measurements);
@@ -166,7 +166,7 @@ namespace Transport
         void ConnectAsync();
 
         // Disconnects from the GEP publisher
-        void Disconnect();
+        void Disconnect() const;
 
         // Historical subscription functions
 
@@ -175,7 +175,7 @@ namespace Transport
         void EstablishHistoricalRead(const std::string& startTime, const std::string& stopTime);
 
         // Dynamically controls replay speed - can be updated while historical data is being received
-        void SetHistoricalReplayInterval(int32_t replayInterval);
+        void SetHistoricalReplayInterval(int32_t replayInterval) const;
 
         // Gets or sets user defined data reference for SubscriberInstance
         void* GetUserData() const;
@@ -184,17 +184,17 @@ namespace Transport
         // Gets or sets value that determines whether
         // payload data is compressed using TSSC.
         bool IsPayloadDataCompressed() const;
-        void SetPayloadDataCompressed(bool compressed);
+        void SetPayloadDataCompressed(bool compressed) const;
 
         // Gets or sets value that determines whether the
         // metadata transfer is compressed using GZip.
         bool IsMetadataCompressed() const;
-        void SetMetadataCompressed(bool compressed);
+        void SetMetadataCompressed(bool compressed) const;
 
         // Gets or sets value that determines whether the
         // signal index cache is compressed using GZip.
         bool IsSignalIndexCacheCompressed() const;
-        void SetSignalIndexCacheCompressed(bool compressed);
+        void SetSignalIndexCacheCompressed(bool compressed) const;
 
         // Statistical functions
         uint64_t GetTotalCommandChannelBytesReceived() const;

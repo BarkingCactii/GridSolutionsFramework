@@ -36,8 +36,8 @@ TimerPtr PublishTimer;
 vector<MeasurementMetadataPtr> MeasurementsToPublish;
 
 bool RunPublisher(uint16_t port);
-void DisplayClientConnected(DataPublisher* source, const Guid& subscriberID, const string& connectionID);
-void DisplayClientDisconnected(DataPublisher* source, const Guid& subscriberID, const string& connectionID);
+void DisplayClientConnected(DataPublisher* source, const SubscriberConnectionPtr& connection);
+void DisplayClientDisconnected(DataPublisher* source, const SubscriberConnectionPtr& connection);
 void DisplayStatusMessage(DataPublisher* source, const string& message);
 void DisplayErrorMessage(DataPublisher* source, const string& message);
 
@@ -76,18 +76,11 @@ int main(int argc, char* argv[])
         PublishTimer->Stop();
     }
 
-    // Disconnect the subscriber to stop background threads.
-    //Subscriber.Disconnect();
-    cout << "Disconnected." << endl;
+    cout << "Publisher stopped." << endl;
 
     return 0;
 }
 
-// The proper procedure when creating and running a subscriber is:
-//   - Create publisher
-//   - Register callbacks
-//   - Start publisher to listen for subscribers
-//   - Publish
 bool RunPublisher(uint16_t port)
 {
     string errorMessage;
@@ -133,9 +126,10 @@ bool RunPublisher(uint16_t port)
         // send random values every 33 milliseconds
         PublishTimer = NewSharedPtr<Timer>(33, [](Timer*, void*)
         {
-            static uint32_t count = MeasurementsToPublish.size();
+            // If metadata can change, the following integer should not be static:
+            static uint32_t count = ConvertUInt32(MeasurementsToPublish.size());
             const int64_t timestamp = ToTicks(UtcNow());
-            vector<Measurement> measurements;
+            vector<MeasurementPtr> measurements;
 
             measurements.reserve(count);
 
@@ -143,11 +137,11 @@ bool RunPublisher(uint16_t port)
             for (size_t i = 0; i < count; i++)
             {
                 const MeasurementMetadataPtr metadata = MeasurementsToPublish[i];
-                Measurement measurement;
+                MeasurementPtr measurement = NewSharedPtr<Measurement>();
 
-                measurement.SignalID = metadata->SignalID;
-                measurement.Timestamp = timestamp;
-                measurement.Value = float64_t(rand());
+                measurement->SignalID = metadata->SignalID;
+                measurement->Timestamp = timestamp;
+                measurement->Value = float64_t(rand());
 
                 measurements.push_back(measurement);
             }
@@ -168,18 +162,18 @@ bool RunPublisher(uint16_t port)
     return running;
 }
 
-void DisplayClientConnected(DataPublisher* source, const Guid& subscriberID, const string& connectionID)
+void DisplayClientConnected(DataPublisher* source, const SubscriberConnectionPtr& connection)
 {
     cout << ">> New Client Connected:" << endl;
-    cout << "   Subscriber ID: " << ToString(subscriberID) << endl;
-    cout << "   Connection ID: " << connectionID << endl << endl;
+    cout << "   Subscriber ID: " << ToString(connection->GetSubscriberID()) << endl;
+    cout << "   Connection ID: " << ToString(connection->GetConnectionID()) << endl << endl;
 }
 
-void DisplayClientDisconnected(DataPublisher* source, const Guid& subscriberID, const string& connectionID)
+void DisplayClientDisconnected(DataPublisher* source, const SubscriberConnectionPtr& connection)
 {
     cout << ">> Client Disconnected:" << endl;
-    cout << "   Subscriber ID: " << ToString(subscriberID) << endl;
-    cout << "   Connection ID: " << connectionID << endl << endl;
+    cout << "   Subscriber ID: " << ToString(connection->GetSubscriberID()) << endl;
+    cout << "   Connection ID: " << ToString(connection->GetConnectionID()) << endl << endl;
 }
 
 // Callback which is called to display status messages from the subscriber.

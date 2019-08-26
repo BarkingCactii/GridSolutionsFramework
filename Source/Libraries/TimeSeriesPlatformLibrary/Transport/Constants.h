@@ -24,6 +24,90 @@
 #ifndef __CONSTANTS_H
 #define __CONSTANTS_H
 
+#include "../Common/CommonTypes.h"
+
+namespace GSF {
+namespace TimeSeries
+{
+    // Measurement state flags.
+    enum class MeasurementStateFlags : unsigned int
+    {
+        // Defines normal state.
+        Normal = 0x0,
+        // Defines bad data state.
+        BadData = 0x1,
+        // Defines suspect data state.
+        SuspectData = 0x2,
+        // Defines over range error, i.e., unreasonable high value.
+        OverRangeError = 0x4,
+        // Defines under range error, i.e., unreasonable low value.
+        UnderRangeError = 0x8,
+        // Defines alarm for high value.
+        AlarmHigh = 0x10,
+        // Defines alarm for low value.
+        AlarmLow = 0x20,
+        // Defines warning for high value.
+        WarningHigh = 0x40,
+        // Defines warning for low value.
+        WarningLow = 0x80,
+        // Defines alarm for flat-lined value, i.e., latched value test alarm.
+        FlatlineAlarm = 0x100,
+        // Defines comparison alarm, i.e., outside threshold of comparison with a real-time value.
+        ComparisonAlarm = 0x200,
+        // Defines rate-of-change alarm.
+        ROCAlarm = 0x400,
+        // Defines bad value received.
+        ReceivedAsBad = 0x800,
+        // Defines calculated value state.
+        CalculatedValue = 0x1000,
+        // Defines calculation error with the value.
+        CalculationError = 0x2000,
+        // Defines calculation warning with the value.
+        CalculationWarning = 0x4000,
+        // Defines reserved quality flag.
+        ReservedQualityFlag = 0x8000,
+        // Defines bad time state.
+        BadTime = 0x10000,
+        // Defines suspect time state.
+        SuspectTime = 0x20000,
+        // Defines late time alarm.
+        LateTimeAlarm = 0x40000,
+        // Defines future time alarm.
+        FutureTimeAlarm = 0x80000,
+        // Defines up-sampled state.
+        UpSampled = 0x100000,
+        // Defines down-sampled state.
+        DownSampled = 0x200000,
+        // Defines discarded value state.
+        DiscardedValue = 0x400000,
+        // Defines reserved time flag.
+        ReservedTimeFlag = 0x800000,
+        // Defines user defined flag 1.
+        UserDefinedFlag1 = 0x1000000,
+        // Defines user defined flag 2.
+        UserDefinedFlag2 = 0x2000000,
+        // Defines user defined flag 3.
+        UserDefinedFlag3 = 0x4000000,
+        // Defines user defined flag 4.
+        UserDefinedFlag4 = 0x8000000,
+        // Defines user defined flag 5.
+        UserDefinedFlag5 = 0x10000000,
+        // Defines system error state.
+        SystemError = 0x20000000,
+        // Defines system warning state.
+        SystemWarning = 0x40000000,
+        // Defines measurement error flag.
+        MeasurementError = 0x80000000
+    };
+
+    MeasurementStateFlags operator &(MeasurementStateFlags lhs, MeasurementStateFlags rhs);
+    MeasurementStateFlags operator ^(MeasurementStateFlags lhs, MeasurementStateFlags rhs);
+    MeasurementStateFlags operator ~(MeasurementStateFlags rhs);
+    MeasurementStateFlags& operator |=(MeasurementStateFlags &lhs, MeasurementStateFlags rhs);
+    MeasurementStateFlags& operator &=(MeasurementStateFlags &lhs, MeasurementStateFlags rhs);
+    MeasurementStateFlags& operator ^=(MeasurementStateFlags &lhs, MeasurementStateFlags rhs);
+}}
+
 namespace GSF {
 namespace TimeSeries {
 namespace Transport
@@ -31,9 +115,9 @@ namespace Transport
     // Common constants.
     struct Common
     {
-        static const size_t MaxPacketSize = 32768;
-        static const uint32_t PayloadHeaderSize = 8;
-        static const uint32_t ResponseHeaderSize = 6;
+        static const size_t MaxPacketSize = 32768U;
+        static const uint32_t PayloadHeaderSize = 8U;
+        static const uint32_t ResponseHeaderSize = 6U;
     };
 
     // DataPublisher data packet flags.
@@ -80,8 +164,6 @@ namespace Transport
         static const uint8_t ConfirmNotification = 0x07;
         // Confirm receipt of a buffer block measurement. This message is sent in response to ServerResponse.BufferBlock.
         static const uint8_t ConfirmBufferBlock = 0x08;
-        // Provides measurements to the publisher over the command channel. Allows for unsolicited publication of measurement data to the server so that consumers of data can also provide data to other consumers.
-        static const uint8_t PublishCommandMeasurements = 0x09;
         // Codes for handling user-defined commands.
         static const uint8_t UserCommand00 = 0xD0;
         static const uint8_t UserCommand01 = 0xD1;

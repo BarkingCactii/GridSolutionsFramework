@@ -25,6 +25,7 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/algorithm/string/trim.hpp>
+#define BOOST_ALLOW_DEPRECATED_HEADERS
 #include <boost/uuid/uuid_generators.hpp>
 
 using namespace std;
@@ -45,9 +46,13 @@ const decimal_t Decimal::DotNetMaxValue = decimal_t("792281625142643375935439503
 
 const decimal_t Decimal::DotNetMinValue = decimal_t("-79228162514264337593543950335");
 
+const datetime_t DateTime::MaxValue(max_date_time);
+
+const datetime_t DateTime::MinValue(min_date_time);
+
 const string Empty::String {};
 
-const DateTime Empty::DateTime {};
+const datetime_t Empty::DateTime {};
 
 const Guid Empty::Guid = NilGuidGen();
 
@@ -74,6 +79,34 @@ bool StringEqual::operator()(const string& left, const string& right) const
 bool StringComparer::operator()(const std::string& left, const std::string& right) const
 {
     return Compare(left, right) < 0;
+}
+
+uint32_t GSF::WriteBytes(vector<uint8_t>& buffer, const uint8_t* source, const uint32_t offset, const uint32_t length)
+{
+    for (uint32_t i = 0; i < length; i++)
+        buffer.push_back(source[offset + i]);
+
+    return length;
+}
+
+uint32_t GSF::WriteBytes(vector<uint8_t>& buffer, const vector<uint8_t>& source)
+{
+    const uint32_t length = source.size();
+
+    for (uint32_t i = 0; i < length; i++)
+        buffer.push_back(source[i]);
+
+    return length;
+}
+
+uint32_t GSF::WriteBytes(vector<uint8_t>& buffer, const Guid& value)
+{
+    const uint8_t* bytes = value.data;
+
+    for (uint32_t i = 0; i < 16; i++)
+        buffer.push_back(bytes[i]);
+
+    return 16;
 }
 
 Guid GSF::NewGuid()
@@ -122,7 +155,7 @@ int32_t GSF::Count(const string& value, const string& findValue, bool ignoreCase
     const find_iterator<string::const_iterator> end {};
     int32_t count = 0;
 
-    for (; it != end; ++it, ++count)
+    for (; it != end; ++it, ++count) //-V127
     {
     }
 
@@ -158,7 +191,7 @@ int32_t GSF::IndexOf(const string& value, const string& findValue, bool ignoreCa
     if (it.empty())
         return -1;
 
-    return std::distance(value.begin(), it.begin());
+    return ConvertInt32(std::distance(value.begin(), it.begin()));
 }
 
 int32_t GSF::IndexOf(const string& value, const string& findValue, int32_t index, bool ignoreCase)
@@ -168,7 +201,7 @@ int32_t GSF::IndexOf(const string& value, const string& findValue, int32_t index
     if (it.empty())
         return -1;
 
-    return std::distance(value.begin(), it.begin());
+    return ConvertInt32(std::distance(value.begin(), it.begin()));
 }
 
 int32_t GSF::LastIndexOf(const string& value, const string& findValue, bool ignoreCase)
@@ -207,7 +240,7 @@ string GSF::Split(const string& value, const string& delimiterValue, int32_t ind
     const split_iterator<string::const_iterator> end {};
     int32_t count = 0;
 
-    for (; it != end; ++it, ++count)
+    for (; it != end; ++it, ++count) //-V127
     {
         if (count == index)
             return copy_range<string>(*it);
@@ -280,7 +313,7 @@ string GSF::PadRight(const string& value, uint32_t count, char padChar)
     return value;
 }
 
-DateTime GSF::DateAdd(const DateTime& value, int32_t addValue, TimeInterval interval)
+datetime_t GSF::DateAdd(const datetime_t& value, int32_t addValue, TimeInterval interval)
 {
     switch (interval)
     {
@@ -307,7 +340,7 @@ DateTime GSF::DateAdd(const DateTime& value, int32_t addValue, TimeInterval inte
     }
 }
 
-int32_t GSF::DateDiff(const DateTime& startTime, const DateTime& endTime, TimeInterval interval)
+int32_t GSF::DateDiff(const datetime_t& startTime, const datetime_t& endTime, TimeInterval interval)
 {
     if (interval < TimeInterval::Hour)
     {
@@ -328,7 +361,7 @@ int32_t GSF::DateDiff(const DateTime& startTime, const DateTime& endTime, TimeIn
         }
     }
 
-    time_duration duration = endTime - startTime;
+    TimeSpan duration = endTime - startTime;
 
     switch (interval)
     {
@@ -345,9 +378,9 @@ int32_t GSF::DateDiff(const DateTime& startTime, const DateTime& endTime, TimeIn
     }
 }
 
-int32_t GSF::DatePart(const DateTime& value, TimeInterval interval)
+int32_t GSF::DatePart(const datetime_t& value, TimeInterval interval)
 {
-    static float64_t tickInterval = pow(10.0, time_duration::num_fractional_digits());
+    static float64_t tickInterval = pow(10.0, TimeSpan::num_fractional_digits());
 
     switch (interval)
     {
@@ -376,12 +409,12 @@ int32_t GSF::DatePart(const DateTime& value, TimeInterval interval)
     }
 }
 
-DateTime GSF::Now()
+datetime_t GSF::Now()
 {
-    return DateTime { microsec_clock::local_time() };
+    return datetime_t { microsec_clock::local_time() };
 }
 
-DateTime GSF::UtcNow()
+datetime_t GSF::UtcNow()
 {
-    return DateTime { microsec_clock::universal_time() };
+    return datetime_t { microsec_clock::universal_time() };
 }

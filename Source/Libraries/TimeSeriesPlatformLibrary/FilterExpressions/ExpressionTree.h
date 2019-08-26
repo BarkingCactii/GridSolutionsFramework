@@ -84,7 +84,7 @@ namespace FilterExpressions
     };
 
     const extern int32_t ExpressionValueTypeLength;
-    const char* ExpressionValueTypeAcronym[];
+    const extern char* ExpressionValueTypeAcronym[];
     const char* EnumName(ExpressionValueType valueType);
 
     bool IsIntegerType(ExpressionValueType valueType);
@@ -115,10 +115,10 @@ namespace FilterExpressions
         int64_t ValueAsInt64() const;
         Nullable<int64_t> ValueAsNullableInt64() const;
 
-        decimal_t ValueAsDecimal() const;
+        GSF::decimal_t ValueAsDecimal() const;
         Nullable<GSF::decimal_t> ValueAsNullableDecimal() const;
 
-        float64_t ValueAsDouble() const;
+        GSF::float64_t ValueAsDouble() const;
         Nullable<GSF::float64_t> ValueAsNullableDouble() const;
 
         std::string ValueAsString() const;
@@ -127,8 +127,8 @@ namespace FilterExpressions
         GSF::Guid ValueAsGuid() const;
         Nullable<GSF::Guid> ValueAsNullableGuid() const;
 
-        GSF::DateTime ValueAsDateTime() const;
-        Nullable<GSF::DateTime> ValueAsNullableDateTime() const;
+        GSF::datetime_t ValueAsDateTime() const;
+        Nullable<GSF::datetime_t> ValueAsNullableDateTime() const;
     };
 
     typedef GSF::SharedPtr<ValueExpression> ValueExpressionPtr;
@@ -140,7 +140,7 @@ namespace FilterExpressions
         Not
     };
 
-    const char* ExpressionUnaryTypeAcronym[];
+    const extern char* ExpressionUnaryTypeAcronym[];
     const char* EnumName(ExpressionUnaryType unaryType);
 
     class UnaryExpression : public Expression
@@ -263,7 +263,7 @@ namespace FilterExpressions
         Or
     };
 
-    const char* ExpressionOperatorTypeAcronym[];
+    const extern char* ExpressionOperatorTypeAcronym[];
     const char* EnumName(ExpressionOperatorType operatorType);
 
     class OperatorExpression : public Expression

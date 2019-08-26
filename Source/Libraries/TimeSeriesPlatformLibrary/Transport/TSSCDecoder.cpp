@@ -1,7 +1,7 @@
 //******************************************************************************************************
-//  TSSCMeasurementParser.cpp - Gbtc
+//  TSSCDecoder.cpp - Gbtc
 //
-//  Copyright © 2018, Grid Protection Alliance.  All Rights Reserved.
+//  Copyright Â© 2018, Grid Protection Alliance.  All Rights Reserved.
 //
 //  Licensed to the Grid Protection Alliance (GPA) under one or more contributor license agreements. See
 //  the NOTICE file distributed with this work for additional information regarding copyright ownership.
@@ -21,7 +21,7 @@
 //
 //******************************************************************************************************
 
-#include "TSSCMeasurementParser.h"
+#include "TSSCDecoder.h"
 #include "Constants.h"
 
 using namespace std;
@@ -32,220 +32,27 @@ using namespace GSF::TimeSeries::Transport;
 uint32_t Decode7BitUInt32(const uint8_t* stream, uint32_t& position);
 uint64_t Decode7BitUInt64(const uint8_t* stream, uint32_t& position);
 
-TSSCPointMetadata::TSSCPointMetadata(TSSCMeasurementParser* parent) :
-    m_parent(parent),
-    m_commandsSentSinceLastChange(0),
-    m_mode(4),
-    m_mode21(0),
-    m_mode31(0),
-    m_mode301(0),
-    m_mode41(TSSCCodeWords::Value1),
-    m_mode401(TSSCCodeWords::Value2),
-    m_mode4001(TSSCCodeWords::Value3),
-    m_startupMode(0),
-    PrevNextPointId1(0),
-    PrevQuality1(0),
-    PrevQuality2(0),
-    PrevValue1(0),
-    PrevValue2(0),
-    PrevValue3(0)
-{
-    for (uint8_t i = 0; i < CommandStatsLength; i++)
-        m_commandStats[i] = 0;
-}
-
-int32_t TSSCPointMetadata::ReadCode()
-{
-    int32_t code;
-
-    switch (m_mode)
-    {
-        case 1:
-            code = m_parent->ReadBits5();
-            break;
-        case 2:
-            if (m_parent->ReadBit() == 1)
-            {
-                code = m_mode21;
-            }
-            else
-            {
-                code = m_parent->ReadBits5();
-            }
-            break;
-        case 3:
-            if (m_parent->ReadBit() == 1)
-            {
-                code = m_mode31;
-            }
-            else if (m_parent->ReadBit() == 1)
-            {
-                code = m_mode301;
-            }
-            else
-            {
-                code = m_parent->ReadBits5();
-            }
-            break;
-        case 4:
-            if (m_parent->ReadBit() == 1)
-            {
-                code = m_mode41;
-            }
-            else if (m_parent->ReadBit() == 1)
-            {
-                code = m_mode401;
-            }
-            else if (m_parent->ReadBit() == 1)
-            {
-                code = m_mode4001;
-            }
-            else
-            {
-                code = m_parent->ReadBits5();
-            }
-            break;
-        default:
-            throw SubscriberException("Unsupported compression mode");
-    }
-
-    UpdatedCodeStatistics(code);
-    return code;
-}
-
-void TSSCPointMetadata::UpdatedCodeStatistics(int32_t code)
-{
-    m_commandsSentSinceLastChange++;
-    m_commandStats[code]++;
-
-    if (m_startupMode == 0 && m_commandsSentSinceLastChange > 5)
-    {
-        m_startupMode++;
-        AdaptCommands();
-    }
-    else if (m_startupMode == 1 && m_commandsSentSinceLastChange > 20)
-    {
-        m_startupMode++;
-        AdaptCommands();
-    }
-    else if (m_startupMode == 2 && m_commandsSentSinceLastChange > 100)
-    {
-        AdaptCommands();
-    }
-}
-
-void TSSCPointMetadata::AdaptCommands()
-{
-    uint8_t code1 = 0;
-    int32_t count1 = 0;
-
-    uint8_t code2 = 1;
-    int32_t count2 = 0;
-
-    uint8_t code3 = 2;
-    int32_t count3 = 0;
-
-    int32_t total = 0;
-
-    for (int32_t i = 0; i < CommandStatsLength; i++)
-    {
-        const int32_t count = m_commandStats[i];
-        m_commandStats[i] = 0;
-
-        total += count;
-
-        if (count > count3)
-        {
-            if (count > count1)
-            {
-                code3 = code2;
-                count3 = count2;
-
-                code2 = code1;
-                count2 = count1;
-
-                code1 = static_cast<uint8_t>(i);
-                count1 = count;
-            }
-            else if (count > count2)
-            {
-                code3 = code2;
-                count3 = count2;
-
-                code2 = static_cast<uint8_t>(i);
-                count2 = count;
-            }
-            else
-            {
-                code3 = static_cast<uint8_t>(i);
-                count3 = count;
-            }
-        }
-    }
-
-    const int32_t mode1Size = total * 5;
-    const int32_t mode2Size = count1 * 1 + (total - count1) * 6;
-    const int32_t mode3Size = count1 * 1 + count2 * 2 + (total - count1 - count2) * 7;
-    const int32_t mode4Size = count1 * 1 + count2 * 2 + count3 * 3 + (total - count1 - count2 - count3) * 8;
-
-    int32_t minSize = Int32::MaxValue;
-
-    minSize = min(minSize, mode1Size);
-    minSize = min(minSize, mode2Size);
-    minSize = min(minSize, mode3Size);
-    minSize = min(minSize, mode4Size);
-
-    if (minSize == mode1Size)
-    {
-        m_mode = 1;
-    }
-    else if (minSize == mode2Size)
-    {
-        m_mode = 2;
-        m_mode21 = code1;
-    }
-    else if (minSize == mode3Size)
-    {
-        m_mode = 3;
-        m_mode31 = code1;
-        m_mode301 = code2;
-    }
-    else if (minSize == mode4Size)
-    {
-        m_mode = 4;
-        m_mode41 = code1;
-        m_mode401 = code2;
-        m_mode4001 = code3;
-    }
-    else
-    {
-        throw SubscriberException("Coding Error");
-    }
-
-    m_commandsSentSinceLastChange = 0;
-}
-
-TSSCMeasurementParser::TSSCMeasurementParser() :
+TSSCDecoder::TSSCDecoder() :
     m_data(nullptr),
     m_position(0),
     m_lastPosition(0),
-    m_prevTimestamp1(0L),
-    m_prevTimestamp2(0L),
+    m_prevTimestamp1(0LL),
+    m_prevTimestamp2(0LL),
     m_prevTimeDelta1(Int64::MaxValue),
     m_prevTimeDelta2(Int64::MaxValue),
     m_prevTimeDelta3(Int64::MaxValue),
-    m_prevTimeDelta4(Int64::MaxValue),
+    m_prevTimeDelta4(Int64::MaxValue),    
     m_bitStreamCount(0),
     m_bitStreamCache(0)
 {
-    m_lastPoint = NewSharedPtr<TSSCPointMetadata>(this);
+    m_lastPoint = NewTSSCPointMetadata();
 }
 
-void TSSCMeasurementParser::Reset()
+void TSSCDecoder::Reset()
 {
     m_data = nullptr;
     m_points.clear();
-    m_lastPoint = NewSharedPtr<TSSCPointMetadata>(this);
+    m_lastPoint = NewTSSCPointMetadata();
     m_position = 0;
     m_lastPosition = 0;
     ClearBitStream();
@@ -253,11 +60,16 @@ void TSSCMeasurementParser::Reset()
     m_prevTimeDelta2 = Int64::MaxValue;
     m_prevTimeDelta3 = Int64::MaxValue;
     m_prevTimeDelta4 = Int64::MaxValue;
-    m_prevTimestamp1 = 0L;
-    m_prevTimestamp2 = 0L;
+    m_prevTimestamp1 = 0LL;
+    m_prevTimestamp2 = 0LL;
 }
 
-void TSSCMeasurementParser::SetBuffer(uint8_t* data, uint32_t offset, uint32_t length)
+TSSCPointMetadataPtr TSSCDecoder::NewTSSCPointMetadata()
+{
+    return NewSharedPtr<TSSCPointMetadata>([&,this]() { return ReadBit(); }, [&,this]() { return ReadBits5(); });
+}
+
+void TSSCDecoder::SetBuffer(uint8_t* data, uint32_t offset, uint32_t length)
 {
     ClearBitStream();
     m_data = data;
@@ -265,7 +77,7 @@ void TSSCMeasurementParser::SetBuffer(uint8_t* data, uint32_t offset, uint32_t l
     m_lastPosition = length;
 }
 
-bool TSSCMeasurementParser::TryGetMeasurement(uint16_t& id, int64_t& timestamp, uint32_t& quality, float32_t& value)
+bool TSSCDecoder::TryGetMeasurement(uint16_t& id, int64_t& timestamp, uint32_t& quality, float32_t& value)
 {
     if (m_position == m_lastPosition && BitStreamIsEmpty())
     {
@@ -322,8 +134,8 @@ bool TSSCMeasurementParser::TryGetMeasurement(uint16_t& id, int64_t& timestamp, 
     
     if (nextPoint == nullptr)
     {
-        nextPoint = NewSharedPtr<TSSCPointMetadata>(this);
-        
+        nextPoint = NewTSSCPointMetadata();
+
         if (id >= m_points.size())
             m_points.resize(id + 1, nullptr);
 
@@ -471,7 +283,7 @@ bool TSSCMeasurementParser::TryGetMeasurement(uint16_t& id, int64_t& timestamp, 
     return true;
 }
 
-void TSSCMeasurementParser::DecodePointID(uint8_t code, const TSSCPointMetadataPtr& lastPoint)
+void TSSCDecoder::DecodePointID(uint8_t code, const TSSCPointMetadataPtr& lastPoint)
 {
     if (code == TSSCCodeWords::PointIDXOR4)
     {
@@ -493,7 +305,7 @@ void TSSCMeasurementParser::DecodePointID(uint8_t code, const TSSCPointMetadataP
     }
 }
 
-int64_t TSSCMeasurementParser::DecodeTimestamp(uint8_t code)
+int64_t TSSCDecoder::DecodeTimestamp(uint8_t code)
 {
     int64_t timestamp;
 
@@ -573,7 +385,7 @@ int64_t TSSCMeasurementParser::DecodeTimestamp(uint8_t code)
     return timestamp;
 }
 
-uint32_t TSSCMeasurementParser::DecodeQuality(uint8_t code, const TSSCPointMetadataPtr& nextPoint)
+uint32_t TSSCDecoder::DecodeQuality(uint8_t code, const TSSCPointMetadataPtr& nextPoint)
 {
     uint32_t quality;
 
@@ -592,18 +404,18 @@ uint32_t TSSCMeasurementParser::DecodeQuality(uint8_t code, const TSSCPointMetad
     return quality;
 }
 
-bool TSSCMeasurementParser::BitStreamIsEmpty() const
+bool TSSCDecoder::BitStreamIsEmpty() const
 {
     return m_bitStreamCount == 0;
 }
 
-void TSSCMeasurementParser::ClearBitStream()
+void TSSCDecoder::ClearBitStream()
 {
     m_bitStreamCount = 0;
     m_bitStreamCache = 0;
 }
 
-int32_t TSSCMeasurementParser::ReadBit()
+int32_t TSSCDecoder::ReadBit()
 {
     if (m_bitStreamCount == 0)
     {
@@ -616,12 +428,12 @@ int32_t TSSCMeasurementParser::ReadBit()
     return (m_bitStreamCache >> m_bitStreamCount) & 1;
 }
 
-int32_t TSSCMeasurementParser::ReadBits4()
+int32_t TSSCDecoder::ReadBits4()
 {
     return ReadBit() << 3 | ReadBit() << 2 | ReadBit() << 1 | ReadBit();;
 }
 
-int32_t TSSCMeasurementParser::ReadBits5()
+int32_t TSSCDecoder::ReadBits5()
 {
     return ReadBit() << 4 | ReadBit() << 3 | ReadBit() << 2 | ReadBit() << 1 | ReadBit();;
 }
@@ -674,7 +486,7 @@ uint64_t Decode7BitUInt64(const uint8_t* stream, uint32_t& position)
 
     if (value < 128UL)
     {
-        position++;
+        ++position;
         return value;
     }
     

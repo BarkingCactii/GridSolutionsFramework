@@ -33,6 +33,17 @@
 //
 //******************************************************************************************************
 
+using GSF.Communication;
+using GSF.Configuration;
+using GSF.Data;
+using GSF.Diagnostics;
+using GSF.IO;
+using GSF.Net.Security;
+using GSF.Security.Cryptography;
+using GSF.Threading;
+using GSF.TimeSeries.Adapters;
+using GSF.TimeSeries.Statistics;
+using GSF.Units;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -51,17 +62,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Xml;
-using GSF.Communication;
-using GSF.Configuration;
-using GSF.Data;
-using GSF.Diagnostics;
-using GSF.IO;
-using GSF.Net.Security;
-using GSF.Security.Cryptography;
-using GSF.Threading;
-using GSF.TimeSeries.Adapters;
-using GSF.TimeSeries.Statistics;
-using GSF.Units;
 
 namespace GSF.TimeSeries.Transport
 {
@@ -806,7 +806,7 @@ namespace GSF.TimeSeries.Transport
         public const string DefaultMetadataTables =
             "SELECT NodeID, UniqueID, OriginalSource, IsConcentrator, Acronym, Name, AccessID, ParentAcronym, ProtocolName, FramesPerSecond, CompanyAcronym, VendorAcronym, VendorDeviceName, Longitude, Latitude, InterconnectionName, ContactList, Enabled, UpdatedOn FROM DeviceDetail WHERE IsConcentrator = 0;" +
             "SELECT DeviceAcronym, ID, SignalID, PointTag, SignalReference, SignalAcronym, PhasorSourceIndex, Description, Internal, Enabled, UpdatedOn FROM MeasurementDetail;" +
-            "SELECT ID, DeviceAcronym, Label, Type, Phase, DestinationPhasorID, SourceIndex, UpdatedOn FROM PhasorDetail;" +
+            "SELECT ID, DeviceAcronym, Label, Type, Phase, DestinationPhasorID, SourceIndex, BaseKV, UpdatedOn FROM PhasorDetail;" +
             "SELECT VersionNumber FROM SchemaVersion";
 
         /// <summary>
@@ -4087,7 +4087,7 @@ namespace GSF.TimeSeries.Transport
         private void m_commandChannel_ClientConnectingException(object sender, EventArgs<Exception> e)
         {
             Exception ex = e.Argument;
-            OnProcessException(MessageLevel.Info, new InvalidOperationException($"Data publisher encountered an exception while connecting client to the command channel: {ex.Message}", ex));
+            OnProcessException(MessageLevel.Info, new ConnectionException($"Data publisher encountered an exception while connecting client to the command channel: {ex.Message}", ex));
         }
 
         private void m_commandChannel_ServerStarted(object sender, EventArgs e)

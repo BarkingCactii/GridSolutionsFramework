@@ -88,7 +88,7 @@ namespace PowerCalculations.PowerMultiCalculator
         /// <param name="database">Database connection to use for creating the data operation</param>
         private static void CreateAdapterInstance(AdoDataConnection database)
         {
-            database.ExecuteNonQuery($"INSERT INTO CustomActionAdapter(NodeID, AdapterName, AssemblyName, TypeName, ConnectionString, Enabled) VALUES ('{ConfigurationFile.Current.Settings["systemSettings"]["NodeID"].ValueAs<Guid>()}', 'PHASOR!POWERCALC', 'PowerCalculations.dll', '{typeof(PowerMultiCalculatorAdapter).FullName}', 'FramesPerSecond=30; LagTime=3; LeadTime=1', 1)");
+            database.ExecuteNonQuery($"INSERT INTO CustomActionAdapter(NodeID, AdapterName, AssemblyName, TypeName, ConnectionString, Enabled) VALUES ('{ConfigurationFile.Current.Settings["systemSettings"]["NodeID"].ValueAs<Guid>()}', 'PHASOR!POWERCALC', 'PowerCalculations.dll', '{typeof(PowerMultiCalculatorAdapter).FullName}', 'FramesPerSecond=30; LagTime=5.0; LeadTime=3.0', 1)");
         }
 
         /// <summary>
@@ -139,24 +139,24 @@ namespace PowerCalculations.PowerMultiCalculator
                 $"    pc.ActivePowerOutputSignalID, " +
                 $"    pc.ApparentPowerOutputSignalID, " +
                 $"    pc.ReactivePowerOutputSignalID, " +
-                $"    v.Acronym AS vendoracronym, " +
-                $"    d.Acronym AS deviceacronym, " +
-                $"    c.Acronym AS companyacronym, " +
-                $"    d.id AS deviceid, " +
-                $"    d.historianid AS historianid, " +
-                $"    p.Label AS currentLabel " +
+                $"    v.Acronym AS VendorAcronym, " +
+                $"    d.Acronym AS DeviceAcronym, " +
+                $"    c.Acronym AS CompanyAcronym, " +
+                $"    d.id AS DeviceID, " +
+                $"    vm.HistorianID AS HistorianID, " +
+                $"    p.Label AS CurrentLabel " +
                 $"FROM " +
                 $"    PowerCalculation pc JOIN " +
-                $"    Measurement vm ON vm.SignalID = pc.voltageanglesignalid JOIN " +
+                $"    Measurement vm ON vm.SignalID = pc.VoltageAngleSignalID JOIN " +
                 $"    Measurement im ON im.SignalID = pc.CurrentAngleSignalID LEFT OUTER JOIN " +
                 $"    Phasor p ON im.DeviceID = p.DeviceID AND im.PhasorSourceIndex = p.SourceIndex LEFT OUTER JOIN " +
-                $"    Device d ON vm.deviceid = d.id LEFT OUTER JOIN " +
-                $"    VendorDevice vd ON vd.id = d.VendorDeviceID LEFT OUTER JOIN " +
-                $"    Vendor v ON vd.VendorID = v.id LEFT OUTER JOIN " +
-                $"    Company c ON d.CompanyID = c.id " +
+                $"    Device d ON vm.DeviceID = d.ID LEFT OUTER JOIN " +
+                $"    VendorDevice vd ON vd.ID = d.VendorDeviceID LEFT OUTER JOIN " +
+                $"    Vendor v ON vd.VendorID = v.ID LEFT OUTER JOIN " +
+                $"    Company c ON d.CompanyID = c.ID " +
                 $"WHERE " +
-                $"    pc.Enabled = 1 AND " +
-                $"    pc.nodeid = {nodeIDQueryString} AND " +
+                $"    pc.Enabled <> 0 AND " +
+                $"    pc.NodeID = {nodeIDQueryString} AND " +
                 $"    ( " +
                 $"        pc.ActivePowerOutputSignalID IS NULL OR " +
                 $"        pc.ReactivePowerOutputSignalID IS NULL OR " +
@@ -181,6 +181,12 @@ namespace PowerCalculations.PowerMultiCalculator
                         string circuitDescription = rdr.IsDBNull(1) ? "" : rdr.GetString(1);
                         int deviceID = rdr.GetInt32(8);
                         int? historianID = rdr.IsDBNull(9) ? null : (int?)rdr.GetInt32(9);
+
+                        // Remove any settings defined in circuit description
+                        int semicolonIndex = circuitDescription.IndexOf(';');
+
+                        if (semicolonIndex > -1)
+                            circuitDescription = circuitDescription.Substring(0, semicolonIndex);
 
                         if (rdr.IsDBNull(2)) // Real - MW
                         {

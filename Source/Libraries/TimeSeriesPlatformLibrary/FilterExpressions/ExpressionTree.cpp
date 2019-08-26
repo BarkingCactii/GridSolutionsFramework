@@ -84,9 +84,9 @@ const char* GSF::FilterExpressions::ExpressionOperatorTypeAcronym[] =
     "IS NULL",
     "IS NOT NULL",
     "LIKE",
-    "LIKE BINARY"
+    "LIKE BINARY",
     "NOT LIKE",
-    "NOT LIKE BINARY"
+    "NOT LIKE BINARY",
     "AND",
     "OR"
 };
@@ -387,24 +387,24 @@ Nullable<Guid> ValueExpression::ValueAsNullableGuid() const
     return Cast<Guid>(Value);
 }
 
-DateTime ValueExpression::ValueAsDateTime() const
+datetime_t ValueExpression::ValueAsDateTime() const
 {
     ValidateValueType(ExpressionValueType::DateTime);
 
     if (ValueIsNullable)
-        return Cast<Nullable<DateTime>>(Value).GetValueOrDefault();
+        return Cast<Nullable<datetime_t>>(Value).GetValueOrDefault();
 
-    return Cast<DateTime>(Value);
+    return Cast<datetime_t>(Value);
 }
 
-Nullable<DateTime> ValueExpression::ValueAsNullableDateTime() const
+Nullable<datetime_t> ValueExpression::ValueAsNullableDateTime() const
 {
     ValidateValueType(ExpressionValueType::DateTime);
 
     if (ValueIsNullable)
-        return Cast<Nullable<DateTime>>(Value);
+        return Cast<Nullable<datetime_t>>(Value);
 
-    return Cast<DateTime>(Value);
+    return Cast<datetime_t>(Value);
 }
 
 UnaryExpression::UnaryExpression(const ExpressionUnaryType unaryType, ExpressionPtr value) :
@@ -624,9 +624,9 @@ ValueExpressionPtr ExpressionTree::EvaluateInList(const ExpressionPtr& expressio
     if (inListValue->IsNull())
         return NullValue(inListValue->ValueType);
 
-    const int32_t argumentCount = inListExpression->Arguments->size();
+    const size_t argumentCount = inListExpression->Arguments->size();
 
-    for (int32_t i = 0; i < argumentCount; i++)
+    for (size_t i = 0; i < argumentCount; i++)
     {
         const ValueExpressionPtr argumentValue = Evaluate(inListExpression->Arguments->at(i));
         const ExpressionValueType valueType = DeriveComparisonOperationValueType(ExpressionOperatorType::Equal, inListValue->ValueType, argumentValue->ValueType);
@@ -1626,7 +1626,7 @@ ValueExpressionPtr ExpressionTree::IsDate(const ValueExpressionPtr& testValue) c
     if (testValue->ValueType == ExpressionValueType::DateTime)
         return ExpressionTree::True;
 
-    DateTime timestamp;
+    datetime_t timestamp;
 
     if (testValue->ValueType == ExpressionValueType::String && TryParseTimestamp(testValue->ValueAsString().c_str(), timestamp))
         return ExpressionTree::True;
@@ -3119,7 +3119,7 @@ ValueExpressionPtr ExpressionTree::Convert(const ValueExpressionPtr& sourceValue
         }
         case ExpressionValueType::DateTime:
         {
-            const DateTime result = sourceValue->ValueAsDateTime();
+            const datetime_t result = sourceValue->ValueAsDateTime();
             const time_t value = to_time_t(result);
 
             switch (targetValueType)
@@ -3177,14 +3177,14 @@ ValueExpressionPtr ExpressionTree::EvaluateRegEx(const string& functionName, con
     const string testText = testValue->ValueAsString();
     const regex expression(expressionText);
 
-    cmatch match;
-    const bool result = regex_search(testText.c_str(), match, expression);
+    smatch match;
+    const bool result = regex_search(testText, match, expression);
 
     if (returnMatchedValue)
     {
         // RegExVal returns any matched value, otherwise empty string
         if (result)
-            return NewSharedPtr<ValueExpression>(ExpressionValueType::String, string(match[0]));
+            return NewSharedPtr<ValueExpression>(ExpressionValueType::String, match.str(0));
 
         return ExpressionTree::EmptyString;
     }
@@ -3236,7 +3236,7 @@ ValueExpressionPtr ExpressionTree::NullValue(const ExpressionValueType targetVal
         case ExpressionValueType::Guid:
             return NewSharedPtr<ValueExpression>(ExpressionValueType::Guid, Nullable<Guid>(nullptr), true);
         case ExpressionValueType::DateTime:
-            return NewSharedPtr<ValueExpression>(ExpressionValueType::DateTime, Nullable<DateTime>(nullptr), true);
+            return NewSharedPtr<ValueExpression>(ExpressionValueType::DateTime, Nullable<datetime_t>(nullptr), true);
         default:
             return NewSharedPtr<ValueExpression>(ExpressionValueType::Undefined, nullptr);
     }

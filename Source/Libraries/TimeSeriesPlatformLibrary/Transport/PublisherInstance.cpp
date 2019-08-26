@@ -35,12 +35,12 @@ using namespace GSF::TimeSeries::Transport;
 PublisherInstance::PublisherInstance(uint16_t port, bool ipV6) :
     m_port(port),
     m_isIPV6(ipV6),
-    m_publisher(port, ipV6),
     m_initialized(false),
     m_userData(nullptr)
 {
     // Reference this PublisherInstance in DataPublisher user data
-    m_publisher.SetUserData(this);
+    m_publisher = NewSharedPtr<DataPublisher>(port, ipV6);
+    m_publisher->SetUserData(this);
 }
 
 PublisherInstance::~PublisherInstance() = default;
@@ -57,16 +57,40 @@ void PublisherInstance::HandleErrorMessage(DataPublisher* source, const string& 
     instance->ErrorMessage(message);
 }
 
-void PublisherInstance::HandleClientConnected(DataPublisher* source, const GSF::Guid& subscriberID, const std::string& connectionID)
+void PublisherInstance::HandleClientConnected(DataPublisher* source, const SubscriberConnectionPtr& connection)
 {
     PublisherInstance* instance = static_cast<PublisherInstance*>(source->GetUserData());
-    instance->ClientConnected(subscriberID, connectionID);
+    instance->ClientConnected(connection);
 }
 
-void PublisherInstance::HandleClientDisconnected(DataPublisher* source, const GSF::Guid& subscriberID, const std::string& connectionID)
+void PublisherInstance::HandleClientDisconnected(DataPublisher* source, const SubscriberConnectionPtr& connection)
 {
     PublisherInstance* instance = static_cast<PublisherInstance*>(source->GetUserData());
-    instance->ClientDisconnected(subscriberID, connectionID);
+    instance->ClientDisconnected(connection);
+}
+
+void PublisherInstance::HandleProcessingIntervalChangeRequested(DataPublisher* source, const SubscriberConnectionPtr& connection)
+{
+    PublisherInstance* instance = static_cast<PublisherInstance*>(source->GetUserData());
+    instance->ProcessingIntervalChangeRequested(connection);
+}
+
+void PublisherInstance::HandleTemporalSubscriptionRequested(DataPublisher* source, const SubscriberConnectionPtr& connection)
+{
+    PublisherInstance* instance = static_cast<PublisherInstance*>(source->GetUserData());
+    instance->TemporalSubscriptionRequested(connection);
+}
+
+void PublisherInstance::HandleTemporalSubscriptionCanceled(DataPublisher* source, const SubscriberConnectionPtr& connection)
+{
+    PublisherInstance* instance = static_cast<PublisherInstance*>(source->GetUserData());
+    instance->TemporalSubscriptionCanceled(connection);
+}
+
+void PublisherInstance::HandleReceivedUserCommand(DataPublisher* source, const SubscriberConnectionPtr& connection, uint32_t command, const std::vector<uint8_t>& buffer)
+{
+    PublisherInstance* instance = static_cast<PublisherInstance*>(source->GetUserData());
+    instance->HandleUserCommand(connection, command, buffer);
 }
 
 void PublisherInstance::StatusMessage(const string& message)
@@ -79,91 +103,170 @@ void PublisherInstance::ErrorMessage(const string& message)
     cerr << message << endl << endl;
 }
 
-void PublisherInstance::ClientConnected(const GSF::Guid& subscriberID, const string& connectionID)
+void PublisherInstance::ClientConnected(const SubscriberConnectionPtr& connection)
 {
-    cout << "Client \"" << connectionID << "\" with subscriber ID " << ToString(subscriberID) << " connected..." << endl << endl;
+    cout << "Client \"" << connection->GetConnectionID() << "\" with subscriber ID " << ToString(connection->GetSubscriberID()) << " connected..." << endl << endl;
 }
 
-void PublisherInstance::ClientDisconnected(const GSF::Guid& subscriberID, const std::string& connectionID)
+void PublisherInstance::ClientDisconnected(const SubscriberConnectionPtr& connection)
 {
-    cout << "Client \"" << connectionID << "\" with subscriber ID " << ToString(subscriberID) << " disconnected..." << endl << endl;
+    cout << "Client \"" << connection->GetConnectionID() << "\" with subscriber ID " << ToString(connection->GetSubscriberID()) << " disconnected..." << endl << endl;
+}
+
+void PublisherInstance::ProcessingIntervalChangeRequested(const SubscriberConnectionPtr& connection)
+{
+    cout << "Client \"" << connection->GetConnectionID() << "\" with subscriber ID " << ToString(connection->GetSubscriberID()) << " has requested to change its temporal processing interval to " << ToString(connection->GetProcessingInterval()) << "ms" << endl << endl;
+}
+
+void PublisherInstance::TemporalSubscriptionRequested(const SubscriberConnectionPtr& connection)
+{
+    cout << "Client \"" << connection->GetConnectionID() << "\" with subscriber ID " << ToString(connection->GetSubscriberID()) << " has requested a temporal subscription starting at " << ToString(connection->GetStartTimeConstraint()) << endl << endl;
+}
+
+void PublisherInstance::TemporalSubscriptionCanceled(const SubscriberConnectionPtr& connection)
+{
+    cout << "Client \"" << connection->GetConnectionID() << "\" with subscriber ID " << ToString(connection->GetSubscriberID()) << " has canceled the temporal subscription starting at " << ToString(connection->GetStartTimeConstraint()) << endl << endl;
+}
+
+void PublisherInstance::HandleUserCommand(const SubscriberConnectionPtr& connection, uint32_t command, const std::vector<uint8_t>& buffer)
+{
+    cout << "Client \"" << connection->GetConnectionID() << "\" with subscriber ID " << ToString(connection->GetSubscriberID()) << " sent user-defined command \"" << ToHex(command) << "\" with " << buffer.size() << " bytes of payload" << endl << endl;
 }
 
 void PublisherInstance::Initialize()
 {
     // Register callbacks
-    m_publisher.RegisterStatusMessageCallback(&HandleStatusMessage);
-    m_publisher.RegisterErrorMessageCallback(&HandleErrorMessage);
-    m_publisher.RegisterClientConnectedCallback(&HandleClientConnected);
-    m_publisher.RegisterClientDisconnectedCallback(&HandleClientDisconnected);
+    m_publisher->RegisterStatusMessageCallback(&HandleStatusMessage);
+    m_publisher->RegisterErrorMessageCallback(&HandleErrorMessage);
+    m_publisher->RegisterClientConnectedCallback(&HandleClientConnected);
+    m_publisher->RegisterClientDisconnectedCallback(&HandleClientDisconnected);
+    m_publisher->RegisterProcessingIntervalChangeRequestedCallback(&HandleProcessingIntervalChangeRequested);
+    m_publisher->RegisterTemporalSubscriptionRequestedCallback(&HandleTemporalSubscriptionRequested);
+    m_publisher->RegisterTemporalSubscriptionCanceledCallback(&HandleTemporalSubscriptionCanceled);
+    m_publisher->RegisterUserCommandCallback(&HandleReceivedUserCommand);
 
     m_initialized = true;
 }
 
-void PublisherInstance::DefineMetadata(const vector<DeviceMetadataPtr>& deviceMetadata, const vector<MeasurementMetadataPtr>& measurementMetadata, const vector<PhasorMetadataPtr>& phasorMetadata, int32_t versionNumber)
+void PublisherInstance::DefineMetadata(const vector<DeviceMetadataPtr>& deviceMetadata, const vector<MeasurementMetadataPtr>& measurementMetadata, const vector<PhasorMetadataPtr>& phasorMetadata, int32_t versionNumber) const
 {
-    m_publisher.DefineMetadata(deviceMetadata, measurementMetadata, phasorMetadata, versionNumber);
+    m_publisher->DefineMetadata(deviceMetadata, measurementMetadata, phasorMetadata, versionNumber);
 }
 
-void PublisherInstance::DefineMetadata(const DataSetPtr& metadata)
+void PublisherInstance::DefineMetadata(const DataSetPtr& metadata) const
 {
-    m_publisher.DefineMetadata(metadata);
+    m_publisher->DefineMetadata(metadata);
 }
 
-void PublisherInstance::PublishMeasurements(const vector<Measurement>& measurements)
+const DataSetPtr& PublisherInstance::GetMetadata() const
+{
+    return m_publisher->GetMetadata();
+}
+
+const DataSetPtr& PublisherInstance::GetFilteringMetadata() const
+{
+    return m_publisher->GetFilteringMetadata();
+}
+
+vector<MeasurementMetadataPtr> PublisherInstance::FilterMetadata(const string& filterExpression) const
+{
+    return m_publisher->FilterMetadata(filterExpression);
+}
+
+void PublisherInstance::PublishMeasurements(const vector<Measurement>& measurements) const
 {
     if (!m_initialized)
         throw PublisherException("Operation failed, publisher is not initialized.");
 
-    m_publisher.PublishMeasurements(measurements);
+    m_publisher->PublishMeasurements(measurements);
 }
 
-void PublisherInstance::PublishMeasurements(const vector<MeasurementPtr>& measurements)
+void PublisherInstance::PublishMeasurements(const vector<MeasurementPtr>& measurements) const
 {
     if (!m_initialized)
         throw PublisherException("Operation failed, publisher is not initialized.");
 
-    m_publisher.PublishMeasurements(measurements);
+    m_publisher->PublishMeasurements(measurements);
+}
+
+const GSF::Guid& PublisherInstance::GetNodeID() const
+{
+    return m_publisher->GetNodeID();
+}
+
+void PublisherInstance::SetNodeID(const GSF::Guid& nodeID) const
+{
+    m_publisher->SetNodeID(nodeID);
+}
+
+SecurityMode PublisherInstance::GetSecurityMode() const
+{
+    return m_publisher->GetSecurityMode();
+}
+
+void PublisherInstance::SetSecurityMode(SecurityMode securityMode) const
+{
+    m_publisher->SetSecurityMode(securityMode);
+}
+
+int32_t PublisherInstance::GetMaximumAllowedConnections() const
+{
+    return m_publisher->GetMaximumAllowedConnections();
+}
+
+void PublisherInstance::SetMaximumAllowedConnections(int32_t value) const
+{
+    m_publisher->SetMaximumAllowedConnections(value);
 }
 
 bool PublisherInstance::IsMetadataRefreshAllowed() const
 {
-    return m_publisher.IsMetadataRefreshAllowed();
+    return m_publisher->GetIsMetadataRefreshAllowed();
 }
 
-void PublisherInstance::SetMetadataRefreshAllowed(bool allowed)
+void PublisherInstance::SetMetadataRefreshAllowed(bool allowed) const
 {
-    m_publisher.SetMetadataRefreshAllowed(allowed);
+    m_publisher->SetIsMetadataRefreshAllowed(allowed);
 }
 
 bool PublisherInstance::IsNaNValueFilterAllowed() const
 {
-    return m_publisher.IsNaNValueFilterAllowed();
+    return m_publisher->GetIsNaNValueFilterAllowed();
 }
 
-void PublisherInstance::SetNaNValueFilterAllowed(bool allowed)
+void PublisherInstance::SetNaNValueFilterAllowed(bool allowed) const
 {
-    m_publisher.SetNaNValueFilterAllowed(allowed);
+    m_publisher->SetNaNValueFilterAllowed(allowed);
 }
 
 bool PublisherInstance::IsNaNValueFilterForced() const
 {
-    return m_publisher.IsNaNValueFilterForced();
+    return m_publisher->GetIsNaNValueFilterForced();
 }
 
-void PublisherInstance::SetNaNValueFilterForced(bool forced)
+void PublisherInstance::SetNaNValueFilterForced(bool forced) const
 {
-    m_publisher.SetNaNValueFilterForced(forced);
+    m_publisher->SetIsNaNValueFilterForced(forced);
+}
+
+bool PublisherInstance::GetSupportsTemporalSubscriptions() const
+{
+    return m_publisher->GetSupportsTemporalSubscriptions();
+}
+
+void PublisherInstance::SetSupportsTemporalSubscriptions(bool value) const
+{
+    m_publisher->SetSupportsTemporalSubscriptions(value);
 }
 
 uint32_t PublisherInstance::GetCipherKeyRotationPeriod() const
 {
-    return m_publisher.GetCipherKeyRotationPeriod();
+    return m_publisher->GetCipherKeyRotationPeriod();
 }
 
-void PublisherInstance::SetCipherKeyRotationPeriod(uint32_t period)
+void PublisherInstance::SetCipherKeyRotationPeriod(uint32_t period) const
 {
-    m_publisher.SetCipherKeyRotationPeriod(period);
+    m_publisher->SetCipherKeyRotationPeriod(period);
 }
 
 uint16_t PublisherInstance::GetPort() const
@@ -186,22 +289,36 @@ void PublisherInstance::SetUserData(void* userData)
     m_userData = userData;
 }
 
-uint64_t PublisherInstance::GetTotalCommandChannelBytesSent()
+uint64_t PublisherInstance::GetTotalCommandChannelBytesSent() const
 {
-    return m_publisher.GetTotalCommandChannelBytesSent();
+    return m_publisher->GetTotalCommandChannelBytesSent();
 }
 
-uint64_t PublisherInstance::GetTotalDataChannelBytesSent()
+uint64_t PublisherInstance::GetTotalDataChannelBytesSent() const
 {
-    return m_publisher.GetTotalDataChannelBytesSent();
+    return m_publisher->GetTotalDataChannelBytesSent();
 }
 
-uint64_t PublisherInstance::GetTotalMeasurementsSent()
+uint64_t PublisherInstance::GetTotalMeasurementsSent() const
 {
-    return m_publisher.GetTotalMeasurementsSent();
+    return m_publisher->GetTotalMeasurementsSent();
 }
 
 bool PublisherInstance::IsInitialized() const
 {
     return m_initialized;
+}
+
+bool PublisherInstance::TryGetSubscriberConnections(vector<SubscriberConnectionPtr>& subscriberConnections) const
+{
+    subscriberConnections.clear();
+
+    m_publisher->IterateSubscriberConnections([](const SubscriberConnectionPtr& connection, void* userData)
+    {
+        auto connections = static_cast<vector<SubscriberConnectionPtr>*>(userData);
+        connections->push_back(connection);
+    },
+    &subscriberConnections);
+
+    return !subscriberConnections.empty();
 }

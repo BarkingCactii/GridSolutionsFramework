@@ -5,10 +5,10 @@
 //
 //  Licensed to the Grid Protection Alliance (GPA) under one or more contributor license agreements. See
 //  the NOTICE file distributed with this work for additional information regarding copyright ownership.
-//  The GPA licenses this file to you under the Eclipse Public License -v 1.0 (the "License"); you may
-//  not use this file except in compliance with the License. You may obtain a copy of the License at:
+//  The GPA licenses this file to you under the MIT License (MIT), the "License"; you may not use this
+//  file except in compliance with the License. You may obtain a copy of the License at:
 //
-//      http://www.opensource.org/licenses/eclipse-1.0.php
+//      http://opensource.org/licenses/MIT
 //
 //  Unless agreed to in writing, the subject software distributed under the License is distributed on an
 //  "AS-IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. Refer to the
@@ -25,6 +25,7 @@
 #define __TRANSPORT_TYPES_H
 
 #include "../Common/CommonTypes.h"
+#include "Constants.h"
 #include <unordered_set>
 
 namespace GSF {
@@ -87,7 +88,7 @@ namespace TimeSeries
 
         // Flags indicating the state of the measurement
         // as reported by the device that took it.
-        uint32_t Flags;
+        MeasurementStateFlags Flags;
 
         // Creates a new instance.
         Measurement();
@@ -97,13 +98,14 @@ namespace TimeSeries
         float64_t AdjustedValue() const;
 
         // Gets Timestamp as DateTime
-        DateTime GetDateTime() const;
+        datetime_t GetDateTime() const;
 
         // Gets Timestamp in Unix second of century and milliseconds
         void GetUnixTime(time_t& unixSOC, uint16_t& milliseconds) const;
     };
 
     typedef SharedPtr<Measurement> MeasurementPtr;
+    MeasurementPtr ToPtr(const Measurement& source);
 
     enum SignalKind : int16_t
     {
@@ -162,7 +164,7 @@ namespace TimeSeries
         SignalReference Reference;	// Parsed signal reference structure
         uint16_t PhasorSourceIndex; // Measurement phasor index, if measurement represents a "Phasor"
         std::string Description;    // Detailed measurement description (free-form)
-        DateTime UpdatedOn;			// Time of last meta-data update
+        datetime_t UpdatedOn;			// Time of last meta-data update
     };
 
     typedef SharedPtr<MeasurementMetadata> MeasurementMetadataPtr;
@@ -174,7 +176,7 @@ namespace TimeSeries
         std::string Type;			// Phasor type, i.e., "V" for voltage or "I" for current
         std::string Phase;			// Phasor phase, one of, "+", "-", "0", "A", "B" or "C"
         uint16_t SourceIndex;	    // Phasor ordered index, uses 1-based indexing (key to MeasurementMetadata.PhasorSourceIndex)
-        DateTime UpdatedOn;		    // Time of last meta-data update
+        datetime_t UpdatedOn;		    // Time of last meta-data update
     };
 
     typedef SharedPtr<PhasorMetadata> PhasorMetadataPtr;
@@ -202,7 +204,7 @@ namespace TimeSeries
         std::string VendorDeviceName;   // Original vendor device name, e.g., PMU brand (if useful / provided)
         float64_t Longitude;	        // Device longitude (if reported)
         float64_t Latitude;		        // Device latitude (if reported)
-        DateTime UpdatedOn;			    // Time of last meta-data update
+        datetime_t UpdatedOn;			    // Time of last meta-data update
 
         // Associated measurement and phasor meta-data
         std::vector<MeasurementMetadataPtr> Measurements;   // DataPublisher does not need to assign
@@ -287,5 +289,72 @@ namespace TimeSeries
     //	vector<Measurement> Digitals;
     //};
 }}
+
+namespace GSF {
+namespace TimeSeries {
+namespace Transport
+{
+    // The metadata kept for each pointID.
+    class TSSCPointMetadata
+    {
+    private:
+        static const uint8_t CommandStatsLength = 32;
+
+        uint8_t m_commandStats[CommandStatsLength];
+        int32_t m_commandsSentSinceLastChange;
+
+        //Bit codes for the 4 modes of encoding. 
+        uint8_t m_mode;
+
+        //(Mode 1 means no prefix.)
+        uint8_t m_mode21;
+
+        uint8_t m_mode31;
+        uint8_t m_mode301;
+
+        uint8_t m_mode41;
+        uint8_t m_mode401;
+        uint8_t m_mode4001;
+
+        int32_t m_startupMode;
+
+        std::function<void(int32_t, int32_t)> m_writeBits;
+        std::function<int32_t()> m_readBit;
+        std::function<int32_t()> m_readBits5;
+
+        void UpdatedCodeStatistics(int32_t code);
+        void AdaptCommands();
+
+        TSSCPointMetadata(
+            std::function<void(int32_t, int32_t)> writeBits,
+            std::function<int32_t()> readBit,
+            std::function<int32_t()> readBits5
+        );
+
+    public:
+        TSSCPointMetadata(
+            std::function<void(int32_t, int32_t)> writeBits
+        );
+
+        TSSCPointMetadata(
+            std::function<int32_t()> readBit,
+            std::function<int32_t()> readBits5
+        );
+
+        uint16_t PrevNextPointId1;
+
+        uint32_t PrevQuality1;
+        uint32_t PrevQuality2;
+        uint32_t PrevValue1;
+        uint32_t PrevValue2;
+        uint32_t PrevValue3;
+
+        void WriteCode(int32_t code);
+
+        int32_t ReadCode();
+    };
+
+    typedef SharedPtr<TSSCPointMetadata> TSSCPointMetadataPtr;
+}}}
 
 #endif

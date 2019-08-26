@@ -24,10 +24,11 @@
 #ifndef __DATA_PUBLISHER_H
 #define __DATA_PUBLISHER_H
 
-#include "SubscriberConnection.h"
 #include "../Common/CommonTypes.h"
 #include "../Common/ThreadSafeQueue.h"
 #include "../Data/DataSet.h"
+#include "SubscriberConnection.h"
+#include "RoutingTables.h"
 #include "TransportTypes.h"
 #include "Constants.h"
 
@@ -44,12 +45,14 @@ namespace Transport
 {
     class DataPublisher : public EnableSharedThisPtr<DataPublisher> // NOLINT
     {
-    private:
+    public:
         // Function pointer types
         typedef std::function<void(DataPublisher*, const std::vector<uint8_t>&)> DispatcherFunction;
         typedef std::function<void(DataPublisher*, const std::string&)> MessageCallback;
-        typedef std::function<void(DataPublisher*, const GSF::Guid&, const std::string&)> SubscriberConnectionCallback;
+        typedef std::function<void(DataPublisher*, const SubscriberConnectionPtr&)> SubscriberConnectionCallback;
+        typedef std::function<void(DataPublisher*, const SubscriberConnectionPtr&, uint32_t, const std::vector<uint8_t>&)> UserCommandCallback;
 
+    private:
         // Structure used to dispatch
         // callbacks on the callback thread.
         struct CallbackDispatcher
@@ -64,35 +67,31 @@ namespace Transport
         GSF::Guid m_nodeID;
         GSF::Data::DataSetPtr m_metadata;
         GSF::Data::DataSetPtr m_filteringMetadata;
+        RoutingTables m_routingTables;
         std::unordered_set<SubscriberConnectionPtr> m_subscriberConnections;
-        GSF::Mutex m_subscriberConnectionsLock;
+        GSF::SharedMutex m_subscriberConnectionsLock;
         SecurityMode m_securityMode;
-        bool m_allowMetadataRefresh;
-        bool m_allowNaNValueFilter;
-        bool m_forceNaNValueFilter;
+        int32_t m_maximumAllowedConnections;
+        bool m_isMetadataRefreshAllowed;
+        bool m_isNaNValueFilterAllowed;
+        bool m_isNaNValueFilterForced;
+        bool m_supportsTemporalSubscriptions;
+        bool m_useBaseTimeOffsets;
         uint32_t m_cipherKeyRotationPeriod;
         void* m_userData;
         bool m_disposing;
 
-        // Callback thread members
-        Thread m_callbackThread;
+        // Callback queue
         ThreadSafeQueue<CallbackDispatcher> m_callbackQueue;
 
         // Command channel
-        Thread m_commandChannelAcceptThread;
         GSF::IOContext m_commandChannelService;
         GSF::TcpAcceptor m_clientAcceptor;
-
-        // Data channel
-        GSF::IOContext m_dataChannelService;
-
-        // Threads
-        void RunCallbackThread();
-        void RunCommandChannelAcceptThread();
 
         // Command channel handlers
         void StartAccept();
         void AcceptConnection(const SubscriberConnectionPtr& connection, const ErrorCode& error);
+        void ConnectionTerminated(const SubscriberConnectionPtr& connection);
         void RemoveConnection(const SubscriberConnectionPtr& connection);
 
         // Callbacks
@@ -100,37 +99,61 @@ namespace Transport
         MessageCallback m_errorMessageCallback;
         SubscriberConnectionCallback m_clientConnectedCallback;
         SubscriberConnectionCallback m_clientDisconnectedCallback;
+        SubscriberConnectionCallback m_processingIntervalChangeRequestedCallback;
+        SubscriberConnectionCallback m_temporalSubscriptionRequestedCallback;
+        SubscriberConnectionCallback m_temporalSubscriptionCanceledCallback;
+        UserCommandCallback m_userCommandCallback;
 
         // Dispatchers
         void Dispatch(const DispatcherFunction& function);
         void Dispatch(const DispatcherFunction& function, const uint8_t* data, uint32_t offset, uint32_t length);
         void DispatchStatusMessage(const std::string& message);
         void DispatchErrorMessage(const std::string& message);
-        void DispatchClientConnected(const GSF::Guid& subscriberID, const std::string& connectionID);
-        void DispatchClientDisconnected(const GSF::Guid& subscriberID, const std::string& connectionID);
+        void DispatchClientConnected(SubscriberConnection* connection);
+        void DispatchClientDisconnected(SubscriberConnection* connection);
+        void DispatchProcessingIntervalChangeRequested(SubscriberConnection* connection);
+        void DispatchTemporalSubscriptionRequested(SubscriberConnection* connection);
+        void DispatchTemporalSubscriptionCanceled(SubscriberConnection* connection);
+        void DispatchUserCommand(SubscriberConnection* connection, uint32_t command, const uint8_t* data, uint32_t length);
 
         static void StatusMessageDispatcher(DataPublisher* source, const std::vector<uint8_t>& buffer);
         static void ErrorMessageDispatcher(DataPublisher* source, const std::vector<uint8_t>& buffer);
         static void ClientConnectedDispatcher(DataPublisher* source, const std::vector<uint8_t>& buffer);
         static void ClientDisconnectedDispatcher(DataPublisher* source, const std::vector<uint8_t>& buffer);
+        static void ProcessingIntervalChangeRequestedDispatcher(DataPublisher* source, const std::vector<uint8_t>& buffer);
+        static void TemporalSubscriptionRequestedDispatcher(DataPublisher* source, const std::vector<uint8_t>& buffer);
+        static void TemporalSubscriptionCanceledDispatcher(DataPublisher* source, const std::vector<uint8_t>& buffer);
+        static void UserCommandDispatcher(DataPublisher* source, const std::vector<uint8_t>& buffer);
         static int32_t GetColumnIndex(const GSF::Data::DataTablePtr& table, const std::string& columnName);
     public:
         // Creates a new instance of the data publisher.
         DataPublisher(const GSF::TcpEndPoint& endpoint);
-        DataPublisher(uint16_t port, bool ipV6 = false);
+        DataPublisher(uint16_t port, bool ipV6 = false);                    // Bind to default NIC
+        DataPublisher(const std::string& networkInterface, uint16_t port);  // Bind to specified NIC IP, format determines IP version
 
         // Releases all threads and sockets
         // tied up by the publisher.
         ~DataPublisher();
 
-        // Define metadata from existing metadata tables
+        // Iterator handler delegates
+        typedef std::function<void(const SubscriberConnectionPtr&, void* userData)> SubscriberConnectionIteratorHandlerFunction;
+
+        // Defines metadata from existing metadata records
         void DefineMetadata(const std::vector<DeviceMetadataPtr>& deviceMetadata, const std::vector<MeasurementMetadataPtr>& measurementMetadata, const std::vector<PhasorMetadataPtr>& phasorMetadata, int32_t versionNumber = 0);
 
-        // Define metadata from an existing dataset
+        // Defines metadata from an existing dataset
         void DefineMetadata(const GSF::Data::DataSetPtr& metadata);
 
+        // Gets primary metadata. This dataset contains all the normalized metadata tables that define
+        // the available detail about the data points that can be subscribed to by clients.
         const GSF::Data::DataSetPtr& GetMetadata() const;
+
+        // Gets filtering metadata. This dataset, derived from primary metadata, contains a flattened
+        // table used to subscribe to a filtered set of points with an expression, e.g.:
+        // FILTER ActiveMeasurements WHERE SignalType LIKE '%PHA'
         const GSF::Data::DataSetPtr& GetFilteringMetadata() const;
+
+        // Filters primary MeasurementDetail metadata returning values as measurement metadata records
         std::vector<MeasurementMetadataPtr> FilterMetadata(const std::string& filterExpression) const;
 
         void PublishMeasurements(const std::vector<Measurement>& measurements);
@@ -140,22 +163,36 @@ namespace Transport
         // instance that gets included in published metadata so that clients
         // can easily distinguish the source of the measurements
         const GSF::Guid& GetNodeID() const;
-        void SetNodeID(const GSF::Guid& nodeID);
+        void SetNodeID(const GSF::Guid& value);
 
         SecurityMode GetSecurityMode() const;
-        void SetSecurityMode(SecurityMode securityMode);
+        void SetSecurityMode(SecurityMode value);
 
-        bool IsMetadataRefreshAllowed() const;
-        void SetMetadataRefreshAllowed(bool allowed);
+        // Gets or sets value that defines the maximum number of allowed connections, -1 = no limit
+        int32_t GetMaximumAllowedConnections() const;
+        void SetMaximumAllowedConnections(int32_t value);
 
-        bool IsNaNValueFilterAllowed() const;
-        void SetNaNValueFilterAllowed(bool allowed);
+        // Gets or sets flag that determines if metadata refresh is allowed by subscribers
+        bool GetIsMetadataRefreshAllowed() const;
+        void SetIsMetadataRefreshAllowed(bool value);
 
-        bool IsNaNValueFilterForced() const;
-        void SetNaNValueFilterForced(bool forced);
+        // Gets or sets flag that determines if NaN value filter is allowed by subscribers
+        bool GetIsNaNValueFilterAllowed() const;
+        void SetNaNValueFilterAllowed(bool value);
+
+        // Gets or sets flag that determines if NaN value filter is forced by publisher, regardless of subscriber request
+        bool GetIsNaNValueFilterForced() const;
+        void SetIsNaNValueFilterForced(bool value);
+
+        bool GetSupportsTemporalSubscriptions() const;
+        void SetSupportsTemporalSubscriptions(bool value);
 
         uint32_t GetCipherKeyRotationPeriod() const;
         void SetCipherKeyRotationPeriod(uint32_t period);
+
+        // Gets or sets flag that determines if base time offsets should be used in compact format
+        bool GetUseBaseTimeOffsets() const;
+        void SetUseBaseTimeOffsets(bool value);
 
         // Gets or sets user defined data reference
         void* GetUserData() const;
@@ -169,17 +206,27 @@ namespace Transport
         // Callback registration
         //
         // Callback functions are defined with the following signatures:
-        //   void ProcessStatusMessage(DataPublisher*, const string& message)
-        //   void ProcessErrorMessage(DataPublisher*, const string& message)
-        //   void ProcessClientConnected(DataPublisher*, const GSF::Guid& subscriberID, const string& connectionID);
-        //   void ProcessClientDisconnected(DataPublisher*, const GSF::Guid& subscriberID, const string& connectionID);
+        //   void HandleStatusMessage(DataPublisher* source, const string& message)
+        //   void HandleErrorMessage(DataPublisher* source, const string& message)
+        //   void HandleClientConnected(DataPublisher* source, const SubscriberConnectionPtr& connection);
+        //   void HandleClientDisconnected(DataPublisher* source, const SubscriberConnectionPtr& connection);
+        //   void HandleProcessingIntervalChangeRequested(DataPublisher* source, const SubscriberConnectionPtr& connection);
+        //   void HandleTemporalSubscriptionRequested(DataPublisher* source, const SubscriberConnectionPtr& connection);
+        //   void HandleTemporalSubscriptionCanceled(DataPublisher* source, const SubscriberConnectionPtr& connection);
+        //   void HandleTemporalSubscriptionCanceled(DataPublisher* source, const SubscriberConnectionPtr& connection);
+        //   void HandleUserCommand(DataPublisher* source, const SubscriberConnectionPtr& connection, uint32_t command, const std::vector<uint8_t>& buffer);
         void RegisterStatusMessageCallback(const MessageCallback& statusMessageCallback);
         void RegisterErrorMessageCallback(const MessageCallback& errorMessageCallback);
         void RegisterClientConnectedCallback(const SubscriberConnectionCallback& clientConnectedCallback);
         void RegisterClientDisconnectedCallback(const SubscriberConnectionCallback& clientDisconnectedCallback);
+        void RegisterProcessingIntervalChangeRequestedCallback(const SubscriberConnectionCallback& processingIntervalChangeRequestedCallback);
+        void RegisterTemporalSubscriptionRequestedCallback(const SubscriberConnectionCallback& temporalSubscriptionRequestedCallback);
+        void RegisterTemporalSubscriptionCanceledCallback(const SubscriberConnectionCallback& temporalSubscriptionCanceledCallback);
+        void RegisterUserCommandCallback(const UserCommandCallback& userCommandCallback);
 
-        //static std::string DecodeClientString(const SubscriberConnectionPtr& connection, const uint8_t* data, uint32_t offset, uint32_t length);
-        //static std::vector<uint8_t> EncodeClientString(const SubscriberConnectionPtr& connection, const std::string& value);
+        // SubscriberConnection iteration function - note that full lock will be maintained on source collection
+        // for the entire call, so keep work time minimized or clone collection before work
+        void IterateSubscriberConnections(const SubscriberConnectionIteratorHandlerFunction& iteratorHandler, void* userData);
 
         friend class SubscriberConnection;
     };
