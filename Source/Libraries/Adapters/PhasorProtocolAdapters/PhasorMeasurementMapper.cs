@@ -1667,7 +1667,7 @@ namespace PhasorProtocolAdapters
             List<IMeasurement> deviceMappedMeasurements = new List<IMeasurement>();
             DeviceStatisticsHelper<ConfigurationCell> statisticsHelper;
             ConfigurationCell definedDevice;
-            long timestamp;
+            Ticks timestamp;
             int x, count;
 
             // Adjust time to UTC based on source time zone
@@ -1680,7 +1680,7 @@ namespace PhasorProtocolAdapters
 
             // Get adjusted timestamp of this frame
             timestamp = frame.Timestamp;
-            timestampIsValid = timestamp.UtcTimeIsValid(m_lagTime, m_leadTime);
+            bool timestampIsValid = timestamp.UtcTimeIsValid(m_lagTime, m_leadTime);
 
             // Track latest reporting time for mapper
             if (timestamp > m_lastReportTime && timestampIsValid)

@@ -2684,7 +2684,8 @@ namespace GSF.PhasorProtocols
                     m_frameParser = new IEEE1344.FrameParser(m_checkSumValidationFrameTypes, TrustHeaderLength);
                     break;
                 case PhasorProtocol.IEC61850_90_5:
-                    m_frameParser = new IEC61850_90_5.FrameParser(m_checkSumValidationFrameTypes, TrustHeaderLength);
+                    {
+                        m_frameParser = new IEC61850_90_5.FrameParser(m_checkSumValidationFrameTypes, TrustHeaderLength);
 
                         // Check for IEC 61850-90-5 protocol specific parameters in connection string
                         IEC61850_90_5.ConnectionParameters iecParameters = m_connectionParameters as IEC61850_90_5.ConnectionParameters;
@@ -2711,7 +2712,7 @@ namespace GSF.PhasorProtocols
                     }
                 case PhasorProtocol.IEC61850_90_5_Goose:
                     {
-                        m_frameParser = new IEC61850_90_5_Goose.FrameParser(m_checkSumValidationFrameTypes, m_trustHeaderLength);
+                        m_frameParser = new IEC61850_90_5_Goose.FrameParser(m_checkSumValidationFrameTypes, TrustHeaderLength);
 
                         // Check for IEC 61850-90-5 protocol specific parameters in connection string
                         IEC61850_90_5_Goose.ConnectionParameters iecParameters = m_connectionParameters as IEC61850_90_5_Goose.ConnectionParameters;
@@ -3429,7 +3430,7 @@ namespace GSF.PhasorProtocols
             try
             {
                 // Attempt to stop real-time data, waiting a maximum of three seconds for this activity
-                if (!m_skipDisableRealTimeData && m_phasorProtocol != PhasorProtocol.IEC61850_90_5 && m_phasorProtocol != PhasorProtocol.IEC61850_90_5_Goose)
+                if (!SkipDisableRealTimeData && m_phasorProtocol != PhasorProtocol.IEC61850_90_5 && m_phasorProtocol != PhasorProtocol.IEC61850_90_5_Goose)
                 {
                     // Some devices will only send a config frame once data streaming has been disabled, so
                     // we use this code to disable real-time data and wait for data to stop streaming...
@@ -3856,7 +3857,7 @@ namespace GSF.PhasorProtocols
         {
             // We automatically request enabling of real-time data upon reception of config frame if requested. Note that SEL Fast Message will
             // have already been enabled at this point so we don't duplicate request for enabling real-time data stream
-            if ((object)m_configurationFrame == null && m_deviceSupportsCommands && m_autoStartDataParsingSequence && 
+            if ((object)m_configurationFrame == null && DeviceSupportsCommands && AutoStartDataParsingSequence && 
                 m_phasorProtocol != PhasorProtocol.SelFastMessage && m_phasorProtocol != PhasorProtocol.IEC61850_90_5 && m_phasorProtocol != PhasorProtocol.IEC61850_90_5_Goose)
                 SendDeviceCommand(DeviceCommand.EnableRealTimeData);
 
