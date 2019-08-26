@@ -32,7 +32,7 @@
             <CollectionViewSource Source="{Binding Path=TimezoneLookupList}" x:Key="TimezoneLookupList"/>
         </StackPanel.Resources>
 
-        <Grid x:Name="GridDetailView" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="5" DataContext="{Binding Path=CurrentItem, Mode=TwoWay}" DataContextChanged="GridDetailView_DataContextChanged">
+        <Grid x:Name="GridDetailView" HorizontalAlignment="Center"  VerticalAlignment="Top" Margin="0,0,0,0" DataContext="{Binding Path=CurrentItem, Mode=TwoWay}" DataContextChanged="GridDetailView_DataContextChanged">
             <Grid.BindingGroup >
                 <BindingGroup Name="input"/>
             </Grid.BindingGroup>
@@ -45,6 +45,7 @@
             </Grid.ColumnDefinitions>
 
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
@@ -142,11 +143,11 @@
                       SelectedItem="{tsfBinding:Column Path=VendorDeviceID, Converter={StaticResource DictionaryToKeyValuePairConverter}, ConverterParameter={StaticResource VendorDeviceLookupList}}"/>
 
             <TextBlock Text="Connection String" Grid.Row="6" Grid.Column="0" />
-            <StackPanel Orientation="Horizontal" Grid.Row="6" Grid.Column="1">
-                <TextBox Text="{tsfBinding:Column Path=ConnectionString}" Height="50" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" 
-                         IsEnabled="{Binding ElementName=ComboBoxConcentrator, Path=SelectedIndex, Converter={StaticResource IndexToBooleanConverter}}"/>
-                <Button Command="{Binding Path=DataContext.BuildConnectionStringCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=StackPanel, AncestorLevel=2}}"
-                            IsEnabled="{Binding ElementName=ComboBoxConcentrator, Path=SelectedIndex, Converter={StaticResource IndexToBooleanConverter}}" VerticalAlignment="Top" ToolTip="Build connection string" Width="Auto">
+            <StackPanel Orientation="Horizontal" Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="3" Width="Auto" HorizontalAlignment="Stretch">
+                <TextBox  Width="Auto" MinWidth="566" MaxWidth="566" Text="{tsfBinding:Column Path=ConnectionString}" TextWrapping="Wrap"  VerticalScrollBarVisibility="Auto" Height="50" 
+                    IsEnabled="{Binding ElementName=ComboBoxConcentrator, Path=SelectedIndex, Converter={StaticResource IndexToBooleanConverter}}"/>
+                <Button Grid.Row="6" Grid.Column="3" HorizontalAlignment="Right" Command="{Binding Path=DataContext.BuildConnectionStringCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=StackPanel, AncestorLevel=2}}"
+                    IsEnabled="{Binding ElementName=ComboBoxConcentrator, Path=SelectedIndex, Converter={StaticResource IndexToBooleanConverter}}" VerticalAlignment="Top" ToolTip="Build connection string" Width="Auto">
                     <Button.Template>
                         <ControlTemplate>
                             <Image Source="/GSF.TimeSeries.UI;component/images/Edit.png" Height="24" Width="24" />
@@ -155,73 +156,73 @@
                 </Button>
             </StackPanel>
             
-            <TextBlock Text="Alternate Command Channel" Grid.Row="6" Grid.Column="2"/>
-            <StackPanel Orientation="Horizontal" Grid.Row="6" Grid.Column="3">
-                <TextBox Text="{tsfBinding:Column Path=AlternateCommandChannel}" Height="50" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
-                           IsEnabled="{Binding ElementName=ComboBoxConcentrator, Path=SelectedIndex, Converter={StaticResource IndexToBooleanConverter}}"/>
-                <Button Command="{Binding Path=DataContext.BuildAlternateCommandChannelCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=StackPanel, AncestorLevel=2}}"
-                             IsEnabled="{Binding ElementName=ComboBoxConcentrator, Path=SelectedIndex, Converter={StaticResource IndexToBooleanConverter}}" VerticalAlignment="Top" ToolTip="Build alternate command channel" Width="Auto">
-                    <Button.Template>
-                        <ControlTemplate>
-                            <Image Source="/GSF.TimeSeries.UI;component/images/Edit.png" Height="24" Width="24" />
-                        </ControlTemplate>
-                    </Button.Template>
-                </Button>
-            </StackPanel>            
+            <TextBlock Text="Alternate Command Channel" Grid.Row="7" Grid.Column="0"/>
+            <StackPanel Orientation="Horizontal" Grid.Row="7" Grid.Column="1" Grid.ColumnSpan="3" Width="Auto" HorizontalAlignment="Stretch">
+                <TextBox Width="Auto" MinWidth="566" MaxWidth="566"  HorizontalAlignment="Stretch" Text="{tsfBinding:Column Path=AlternateCommandChannel}" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="50"
+                    IsEnabled="{Binding ElementName=ComboBoxConcentrator, Path=SelectedIndex, Converter={StaticResource IndexToBooleanConverter}}"/>
+            <Button Grid.Row="7" Grid.Column="3" HorizontalAlignment="Right" Command="{Binding Path=DataContext.BuildAlternateCommandChannelCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=StackPanel, AncestorLevel=2}}"
+                            IsEnabled="{Binding ElementName=ComboBoxConcentrator, Path=SelectedIndex, Converter={StaticResource IndexToBooleanConverter}}" VerticalAlignment="Top" ToolTip="Build alternate command channel" Width="Auto">
+                <Button.Template>
+                    <ControlTemplate>
+                        <Image Source="/GSF.TimeSeries.UI;component/images/Edit.png" Height="24" Width="24" />
+                    </ControlTemplate>
+                </Button.Template>
+            </Button>
+            </StackPanel>
 
-            <StackPanel Orientation="Horizontal" Grid.Row="7" Grid.Column="0" HorizontalAlignment="Right">
+            <StackPanel Orientation="Horizontal" Grid.Row="8" Grid.Column="0" HorizontalAlignment="Right">
                 <TextBlock Text="Data Loss Interval" Style="{StaticResource RequiredLabel}"/>
                 <TextBlock Style="{StaticResource RequiredMarker}" />
             </StackPanel>
-            <TextBox Grid.Row="7" Grid.Column="1" Text="{tsfBinding:Column Path=DataLossInterval}" MaxLength="50" Width="{StaticResource XSmallItemSize}"
-                     IsEnabled="{Binding ElementName=ComboBoxConcentrator, Path=SelectedIndex, Converter={StaticResource IndexToBooleanConverter}}" />
-
-            <StackPanel Orientation="Horizontal" Grid.Row="7" Grid.Column="2" HorizontalAlignment="Right">
-                <TextBlock Text="Time Adjustment Ticks" Style="{StaticResource RequiredLabel}" />
-                <TextBlock Style="{StaticResource RequiredMarker}"/>
-            </StackPanel>
-            <TextBox Grid.Row="7" Grid.Column="3" Text="{tsfBinding:Column Path=TimeAdjustmentTicks}" MaxLength="50" Width="{StaticResource XSmallItemSize}"
-                     IsEnabled="{Binding ElementName=ComboBoxConcentrator, Path=SelectedIndex, Converter={StaticResource IndexToBooleanConverter}}" />
-
-            <StackPanel Orientation="Horizontal" Grid.Row="8" Grid.Column="0" HorizontalAlignment="Right">
-                <TextBlock Text="Allowed Parsing Exception" Style="{StaticResource RequiredLabel}" />
-                <TextBlock Style="{StaticResource RequiredMarker}" />
-            </StackPanel>
-            <TextBox Grid.Row="8" Grid.Column="1" Text="{tsfBinding:Column Path=AllowedParsingExceptions}" MaxLength="50" Width="35"
+            <TextBox Grid.Row="8" Grid.Column="1" Text="{tsfBinding:Column Path=DataLossInterval}" MaxLength="50" Width="{StaticResource XSmallItemSize}"
                      IsEnabled="{Binding ElementName=ComboBoxConcentrator, Path=SelectedIndex, Converter={StaticResource IndexToBooleanConverter}}" />
 
             <StackPanel Orientation="Horizontal" Grid.Row="8" Grid.Column="2" HorizontalAlignment="Right">
-                <TextBlock Text="Parsing Exception Window" Style="{StaticResource RequiredLabel}" />
-                <TextBlock Style="{StaticResource RequiredMarker}" />
+                <TextBlock Text="Time Adjustment Ticks" Style="{StaticResource RequiredLabel}" />
+                <TextBlock Style="{StaticResource RequiredMarker}"/>
             </StackPanel>
-            <TextBox Grid.Row="8" Grid.Column="3" Text="{tsfBinding:Column Path=ParsingExceptionWindow}" MaxLength="50" Width="{StaticResource XSmallItemSize}"
+            <TextBox Grid.Row="8" Grid.Column="3" Text="{tsfBinding:Column Path=TimeAdjustmentTicks}" MaxLength="50" Width="{StaticResource XSmallItemSize}"
                      IsEnabled="{Binding ElementName=ComboBoxConcentrator, Path=SelectedIndex, Converter={StaticResource IndexToBooleanConverter}}" />
 
             <StackPanel Orientation="Horizontal" Grid.Row="9" Grid.Column="0" HorizontalAlignment="Right">
-                <TextBlock Text="Delayed Connection Interval" Style="{StaticResource RequiredLabel}" TextWrapping="Wrap" />
+                <TextBlock Text="Allowed Parsing Exception" Style="{StaticResource RequiredLabel}" />
                 <TextBlock Style="{StaticResource RequiredMarker}" />
             </StackPanel>
-            <TextBox Grid.Row="9" Grid.Column="1" Text="{tsfBinding:Column Path=DelayedConnectionInterval}" MaxLength="50" Width="{StaticResource XSmallItemSize}" 
+            <TextBox Grid.Row="9" Grid.Column="1" Text="{tsfBinding:Column Path=AllowedParsingExceptions}" MaxLength="50" Width="35"
                      IsEnabled="{Binding ElementName=ComboBoxConcentrator, Path=SelectedIndex, Converter={StaticResource IndexToBooleanConverter}}" />
 
             <StackPanel Orientation="Horizontal" Grid.Row="9" Grid.Column="2" HorizontalAlignment="Right">
+                <TextBlock Text="Parsing Exception Window" Style="{StaticResource RequiredLabel}" />
+                <TextBlock Style="{StaticResource RequiredMarker}" />
+            </StackPanel>
+            <TextBox Grid.Row="9" Grid.Column="3" Text="{tsfBinding:Column Path=ParsingExceptionWindow}" MaxLength="50" Width="{StaticResource XSmallItemSize}"
+                     IsEnabled="{Binding ElementName=ComboBoxConcentrator, Path=SelectedIndex, Converter={StaticResource IndexToBooleanConverter}}" />
+
+            <StackPanel Orientation="Horizontal" Grid.Row="10" Grid.Column="0" HorizontalAlignment="Right">
+                <TextBlock Text="Delayed Connection Interval" Style="{StaticResource RequiredLabel}" TextWrapping="Wrap" />
+                <TextBlock Style="{StaticResource RequiredMarker}" />
+            </StackPanel>
+            <TextBox Grid.Row="10" Grid.Column="1" Text="{tsfBinding:Column Path=DelayedConnectionInterval}" MaxLength="50" Width="{StaticResource XSmallItemSize}" 
+                     IsEnabled="{Binding ElementName=ComboBoxConcentrator, Path=SelectedIndex, Converter={StaticResource IndexToBooleanConverter}}" />
+
+            <StackPanel Orientation="Horizontal" Grid.Row="10" Grid.Column="2" HorizontalAlignment="Right">
                 <TextBlock Text="Measurement Reporting Interval" Style="{StaticResource RequiredLabel}" />
                 <TextBlock Style="{StaticResource RequiredMarker}" />
             </StackPanel>
-            <TextBox Grid.Row="9" Grid.Column="3" Text="{tsfBinding:Column Path=MeasurementReportingInterval}" MaxLength="50" Width="{StaticResource XXSmallItemSize}"
+            <TextBox Grid.Row="10" Grid.Column="3" Text="{tsfBinding:Column Path=MeasurementReportingInterval}" MaxLength="50" Width="{StaticResource XXSmallItemSize}"
                      IsEnabled="{Binding ElementName=ComboBoxConcentrator, Path=SelectedIndex, Converter={StaticResource IndexToBooleanConverter}}" />
 
-            <TextBlock Text="Longitude" Grid.Row="10" Grid.Column="0"/>
-            <TextBox Grid.Row="10" Grid.Column="1" Text="{tsfBinding:Column Path=Longitude, UpdateSourceTrigger=LostFocus}" />
+            <TextBlock Text="Longitude" Grid.Row="11" Grid.Column="0"/>
+            <TextBox Grid.Row="11" Grid.Column="1" Text="{tsfBinding:Column Path=Longitude, UpdateSourceTrigger=LostFocus}" />
 
-            <TextBlock Text="Latitude" Grid.Row="10" Grid.Column="2"/>
-            <TextBox Grid.Row="10" Grid.Column="3" Text="{tsfBinding:Column Path=Latitude, UpdateSourceTrigger=LostFocus}" />
+            <TextBlock Text="Latitude" Grid.Row="11" Grid.Column="2"/>
+            <TextBox Grid.Row="11" Grid.Column="3" Text="{tsfBinding:Column Path=Latitude, UpdateSourceTrigger=LostFocus}" />
             
-            <TextBlock Text="Interconnection" Grid.Row="11" Grid.Column="0" />
-            <ComboBox Grid.Row="11" Grid.Column="1" ItemsSource="{Binding Source={StaticResource InterconnectionLookupList}}" DisplayMemberPath="Value"
+            <TextBlock Text="Interconnection" Grid.Row="12" Grid.Column="0" />
+            <ComboBox Grid.Row="12" Grid.Column="1" ItemsSource="{Binding Source={StaticResource InterconnectionLookupList}}" DisplayMemberPath="Value"
                       SelectedItem="{tsfBinding:Column Path=InterconnectionID, Converter={StaticResource DictionaryToKeyValuePairConverter}, ConverterParameter={StaticResource InterconnectionLookupList}}"/>
             
-            <StackPanel Orientation="Horizontal" Grid.Row="12" Grid.ColumnSpan="4">
+            <StackPanel Orientation="Horizontal" Grid.Row="13" Grid.ColumnSpan="4">
                 <CheckBox Content="Skip Disable Real-time Data" IsChecked="{tsfBinding:Column Path=SkipDisableRealTimeData}"
                            IsEnabled="{Binding ElementName=ComboBoxConcentrator, Path=SelectedIndex, Converter={StaticResource IndexToBooleanConverter}}" />
                 <CheckBox Content="Allow Use Of Cached Configuration" IsChecked="{tsfBinding:Column Path=AllowUseOfCachedConfiguration}"
@@ -231,16 +232,16 @@
                 <CheckBox x:Name="CheckBoxConcentrator" Content="Concentrator" IsChecked="{tsfBinding:Column Path=IsConcentrator}"/>                
             </StackPanel>
 
-            <TextBlock Text="Runtime ID" Grid.Row="13" Grid.Column="0" />
-            <StackPanel Orientation="Horizontal" Grid.Row="13" Grid.Column="1">
+            <TextBlock Text="Runtime ID" Grid.Row="14" Grid.Column="0" />
+            <StackPanel Orientation="Horizontal" Grid.Row="14" Grid.Column="1">
                 <TextBlock Text="{tsfBinding:Column Path=DataContext.RuntimeID, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=UserControl, AncestorLevel=1}}" />
                 <Button Content="Initialize" Command="{Binding Path=DataContext.InitializeCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=UserControl, AncestorLevel=1}}" 
                         IsEnabled="{Binding Path=DataContext.IsNewRecord, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=UserControl, AncestorLevel=1}, Converter={StaticResource NotConverter}}"/>
             </StackPanel>
 
-            <CheckBox Content="Connect On Demand" IsChecked="{tsfBinding:Column Path=ConnectOnDemand}" Grid.Row="13" Grid.Column="2"
+            <CheckBox Content="Connect On Demand" IsChecked="{tsfBinding:Column Path=ConnectOnDemand}" Grid.Row="14" Grid.Column="2"
                        IsEnabled="{Binding ElementName=ComboBoxConcentrator, Path=SelectedIndex, Converter={StaticResource IndexToBooleanConverter}}" />
-            <CheckBox Content="Enabled" IsChecked="{tsfBinding:Column Path=Enabled}" Grid.Row="13" Grid.Column="3"/>
+            <CheckBox Content="Enabled" IsChecked="{tsfBinding:Column Path=Enabled}" Grid.Row="14" Grid.Column="3"/>
 
         </Grid>
 
