@@ -158,7 +158,7 @@
             
             <TextBlock Text="Alternate Command Channel" Grid.Row="7" Grid.Column="0"/>
             <StackPanel Orientation="Horizontal" Grid.Row="7" Grid.Column="1" Grid.ColumnSpan="3" Width="Auto" HorizontalAlignment="Stretch">
-                <TextBox Width="Auto" MinWidth="566" MaxWidth="566"  HorizontalAlignment="Stretch" Text="{tsfBinding:Column Path=AlternateCommandChannel}" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="50"
+                <TextBox Width="Auto" MinWidth="566" MaxWidth="566"  HorizontalAlignment="Stretch" Text="{tsfBinding:Column Path=AlternateCommandChannel}" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="32"
                     IsEnabled="{Binding ElementName=ComboBoxConcentrator, Path=SelectedIndex, Converter={StaticResource IndexToBooleanConverter}}"/>
             <Button Grid.Row="7" Grid.Column="3" HorizontalAlignment="Right" Command="{Binding Path=DataContext.BuildAlternateCommandChannelCommand, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=StackPanel, AncestorLevel=2}}"
                             IsEnabled="{Binding ElementName=ComboBoxConcentrator, Path=SelectedIndex, Converter={StaticResource IndexToBooleanConverter}}" VerticalAlignment="Top" ToolTip="Build alternate command channel" Width="Auto">

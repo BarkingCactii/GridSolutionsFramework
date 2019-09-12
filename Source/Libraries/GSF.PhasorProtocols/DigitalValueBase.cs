@@ -33,6 +33,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 using GSF.TimeSeries;
+using System.Linq;
 
 namespace GSF.PhasorProtocols
 {
@@ -204,9 +205,15 @@ namespace GSF.PhasorProtocols
         /// <returns>The length of the data that was parsed.</returns>
         protected override int ParseBodyImage(byte[] buffer, int startIndex, int length)
         {
+            /*
+             * This breaks the code, so if this is ever
+             * re-implemented, handling zero length digital values needs
+             * to be looked at
+             * 
             if (length == 0)
                 // to cover final tag 0x85 0x00
                 return 0;
+             */
 
             // Length is validated at a frame level well in advance so that low level parsing routines do not have
             // to re-validate that enough length is available to parse needed information as an optimization...
