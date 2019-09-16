@@ -404,6 +404,15 @@ namespace GSF.PhasorProtocols.UI.DataModels
                     {
                         id = row.ConvertField<int>("ID");
 
+                        // code to fix up sqlite giving different size integer types when upgrading
+                        object o = row["BaseKV"];
+                        Type t = o.GetType();
+                        int baseKV = 0;
+                        if (t == typeof(int))
+                            baseKV = row.Field<int>("BaseKV");
+                        else if (t == typeof(long))
+                            baseKV = (int)row.Field<long>("BaseKV");
+
                         phasorList[keys.IndexOf(id)] = new Phasor()
                         {
                             ID = id,
@@ -411,7 +420,7 @@ namespace GSF.PhasorProtocols.UI.DataModels
                             Label = row.Field<string>("Label"),
                             Type = row.Field<string>("Type"),
                             Phase = row.Field<string>("Phase"),
-                            BaseKV = row.Field<int>("BaseKV"),
+                            BaseKV = baseKV,//row.Field<int>("BaseKV"),
                             SourceIndex = row.ConvertField<int>("SourceIndex")
                         };
                     }
@@ -645,6 +654,16 @@ namespace GSF.PhasorProtocols.UI.DataModels
                     return null;
 
                 DataRow row = phasorTable.Rows[0];
+
+                // code to fix up sqlite giving different size integer types when upgrading
+                object o = row["BaseKV"];
+                Type t = o.GetType();
+                int baseKV = 0;
+                if (t == typeof(int))
+                    baseKV = row.Field<int>("BaseKV");
+                else if (t == typeof(long))
+                    baseKV = (int)row.Field<long>("BaseKV");
+
                 Phasor phasor = new Phasor
                     {
                         ID = row.ConvertField<int>("ID"),
@@ -652,7 +671,7 @@ namespace GSF.PhasorProtocols.UI.DataModels
                         Label = row.Field<string>("Label"),
                         Type = row.Field<string>("Type"),
                         Phase = row.Field<string>("Phase"),
-                        BaseKV = row.Field<int>("BaseKV"),
+                        BaseKV = baseKV,//row.Field<int>("BaseKV"),
                         SourceIndex = row.ConvertField<int>("SourceIndex")
                     };
 
